@@ -1,0 +1,25 @@
+- name: 服务器初始化
+  ignore_errors: true
+  gather_facts: false
+  hosts:
+    - zookeeper
+  roles:
+    - disable-firewalld
+    - change-hostname
+    - change-sysconf
+    - install-dns-client
+    - install-apt-source
+    - install-ntp-client
+    - install-docker
+    - install-node-exporter
+
+- name: install yes-zk cluster
+  hosts:
+    - zookeeper_sdr
+    - zookeeper_rtd
+  gather_facts: false
+  ignore_errors: true
+  roles:
+    - install-zk
+    - install-filebeat
+    - install-zk-exporter

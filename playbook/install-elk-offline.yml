@@ -1,0 +1,9 @@
+- name: install elk
+  hosts:
+    - k8s_master_init
+  gather_facts: false
+  ignore_errors: false
+  vars_files:
+    - "{{inventory_dir}}/group_vars/kafka_elk.yaml"
+  roles:
+    - k8s-install-elk-offline

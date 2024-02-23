@@ -1,0 +1,160 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: elastalert2
+  namespace: monitoring
+  labels:
+    app: elastalert2
+  annotations:
+    generate-at: "2022-02-14"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: elastalert-config-secret
+  namespace: monitoring
+type: Opaque
+stringData:
+  elastalert_config: |-
+    rules_folder: /opt/elastalert/rules
+    scan_subdirectories: true
+    show_disabled_rules: true
+    run_every:
+      minutes: 1
+    buffer_time:
+      minutes: 15
+    es_host: elasticsearch.elk
+    es_port: 9200
+    writeback_index: elastalert
+    use_ssl: False
+    verify_certs: True
+    from_addr: "elastalert-uat@cicem.fa"
+    smtp_host: "10.12.107.121"
+    smtp_port: 587
+    alert_time_limit:
+      minutes: 2880
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: elastalert-smtp-auth
+  namespace: monitoring
+type: Opaque
+stringData:
+  smtp_auth.yaml: |-
+    user: elastalert-uat@cicem.fa
+    password: password
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elastalert2-rules
+  namespace: monitoring
+  labels:
+    app: elastalert2
+data:
+  nginx.yaml: |
+    name: nginx-rules
+    type: frequency
+    generate_kibana_link: true
+    kibana_url: http://kibana-uat.cicem.fa
+    query_timezone: UTC+8
+    index: log-nginx-nginx-*
+    num_events: 3
+    timeframe:
+      minutes: 3
+    filter:
+      - query:
+          query_string:
+            query: "500"
+    alert:
+      - "email"
+    email:
+      - "tangjizhou@cicem.fa"
+      - "mouyongde@cicem.fa"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elastalert2
+  namespace: monitoring
+  labels:
+    app: elastalert2
+spec:
+  selector:
+    matchLabels:
+      app: elastalert2
+  replicas: 1
+  revisionHistoryLimit: 5
+  template:
+    metadata:
+      labels:
+        name: elastalert2-elastalert
+        app: elastalert2
+    spec:
+      serviceAccountName: elastalert2
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsUser: 1000
+      containers:
+        - name: elastalert
+          image: "{{ image_repository }}/public/elastalert2:2.2.3"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+          args:
+            - --verbose
+          volumeMounts:
+            - name: tz-config
+              mountPath: /etc/localtime
+            - name: config
+              mountPath: '/opt/elastalert/config.yaml'
+              subPath: config.yaml
+            - name: rules
+              mountPath: '/opt/elastalert/rules'
+            - mountPath: /opt/elastalert/config-smtp/smtp_auth.yaml
+              name: smtp-auth
+              readOnly: true
+              subPath: smtp_auth.yaml
+          resources:
+            limits:
+              cpu: "2"
+              memory: 2048Mi
+            requests:
+              cpu: "0.2"
+              memory: 500Mi
+          env:
+            - name: TZ
+              value: Asia/Shanghai
+      restartPolicy: Always
+      tolerations:
+        - effect: NoExecute
+          key: node.kubernetes.io/not-ready
+          operator: Exists
+          tolerationSeconds: 2
+        - effect: NoExecute
+          key: node.kubernetes.io/unreachable
+          operator: Exists
+          tolerationSeconds: 2
+      volumes:
+        - name: tz-config
+          hostPath:
+            path: /etc/localtime
+        - name: rules
+          configMap:
+            name: elastalert2-rules
+        - name: config
+          secret:
+            secretName: elastalert-config-secret
+            items:
+              - key: elastalert_config
+                path: config.yaml
+        - name: smtp-auth
+          secret:
+            items:
+              - key: smtp_auth.yaml
+                mode: 256
+                path: smtp_auth.yaml
+            secretName: elastalert-smtp-auth

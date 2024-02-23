@@ -1,0 +1,24 @@
+- name: 安装nfs-common客户端
+  hosts:
+    - kubernetes
+  gather_facts: false
+  tasks:
+    - name: 安装客户端nfs-common
+      apt:
+        name: nfs-common
+        update_cache: yes
+        state: present
+    - name: 设置nfs-utils.service开机自启
+      systemd:
+        name: nfs-utils.service
+        daemon_reload: true
+        enabled: true
+
+- name: 安装Prometheus-monitor
+  hosts: 
+    - k8s_master_init
+  gather_facts: true
+  ignore_errors: true
+  roles:
+#    - install-kubernetes-monitor
+    - k8s-install-monitor

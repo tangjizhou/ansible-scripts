@@ -1,0 +1,148 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dms
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: dms-admin
+  namespace: dms
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dms-admin-rolebinding
+  namespace: dms
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: admin-upgrade-only
+subjects:
+  - kind: ServiceAccount
+    name: dms-admin
+    namespace: dms
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: dms-admin-view-namespace
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view-namespaces
+subjects:
+  - kind: ServiceAccount
+    name: dms-admin
+    namespace: dms
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: dms-admin-view-crd-resources
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view-crd-resources
+subjects:
+  - kind: ServiceAccount
+    name: dms-admin
+    namespace: dms
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: crd-object-admin
+  namespace: dms
+rules:
+  - verbs:
+      - create
+      - delete
+      - update
+    apiGroups:
+      - '*'
+    resources:
+      - ingressroutes
+      - ingressroutetcps
+      - ingressrouteudps
+  - verbs:
+      - list
+      - get
+      - watch
+    apiGroups:
+      - '*'
+    resources:
+      - ingressroutes
+      - ingressroutetcps
+      - ingressrouteudps
+      - middlewares
+      - servicemonitors
+      - alertmanagers
+      - prometheusrules
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dms-crd-object-admin
+  namespace: dms
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: crd-object-admin
+subjects:
+  - kind: ServiceAccount
+    name: dms-admin
+    namespace: dms
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: harbor
+  namespace: dms
+stringData:
+  .dockerconfigjson: |
+    {
+      "auths": {
+        "{{ image_repository }}": {
+          "username": "{{ dms_harbor_account }}",
+          "password": "{{ dms_harbor_password }}",
+          "auth": "{{ dms_harbor_auth_plaintext | b64encode }}"
+        }
+      }
+    }
+type: kubernetes.io/dockerconfigjson
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: guest
+  namespace: dms
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: guest
+  namespace: dms
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: namespace-resource-guest
+subjects:
+  - kind: ServiceAccount
+    name: guest
+    namespace: dms
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: guest
+  namespace: dms
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-resource-guest
+subjects:
+  - kind: ServiceAccount
+    name: guest
+    namespace: dms

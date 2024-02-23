@@ -1,0 +1,11 @@
+{
+  "insecure-registries": [ {{ docker_insecure_registries | to_json }} ],
+  "exec-opts": [ "native.cgroupdriver=systemd" ],
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "200m",
+    "max-file": "25"
+  },
+  "data-root": "{{ docker_data_root }}",
+  "storage-driver": "overlay2"
+}

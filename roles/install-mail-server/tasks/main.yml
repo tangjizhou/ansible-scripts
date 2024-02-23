@@ -1,0 +1,25 @@
+- name: ensure mailserver dir exist
+  file:
+    path: /data01/mailserver
+    state: directory
+
+- name: check if mailserver exists
+  stat:
+    path: ' /data01/mailserver/docker-compose.yml'
+  register: mailserver_compose_file
+
+- name: stop existed mailserver container
+  shell: docker-compose down
+  when: mailserver_compose_file.stat.exists == true
+  args:
+    chdir: " /data01/mailserver"
+
+- name: send mailserver docker-compose file
+  template:
+    src: docker-compose.yaml.j2
+    dest: /data01/mailserver/docker-compose.yaml
+
+- name: start mailserver docker container
+  shell: docker compose up -d
+  args:
+    chdir: /data01/mailserver

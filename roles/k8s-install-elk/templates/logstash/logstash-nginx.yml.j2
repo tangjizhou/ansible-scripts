@@ -1,0 +1,223 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logstash-nginx-jvm
+  namespace: elk
+data:
+  jvm.options: |
+    ## JVM configuration
+
+    # Xms represents the initial size of total heap space
+    # Xmx represents the maximum size of total heap space
+
+    -Xms7g
+    -Xmx7g
+
+    ################################################################
+    ## Expert settings
+    ################################################################
+    ##
+    ## All settings below this section are considered
+    ## expert settings. Don't tamper with them unless
+    ## you understand what you are doing
+    ##
+    ################################################################
+
+    ## GC configuration
+    -XX:+UseConcMarkSweepGC
+    -XX:CMSInitiatingOccupancyFraction=75
+    -XX:+UseCMSInitiatingOccupancyOnly
+
+    ## Locale
+    # Set the locale language
+    #-Duser.language=en
+
+    # Set the locale country
+    #-Duser.country=US
+
+    # Set the locale variant, if any
+    #-Duser.variant=
+
+    ## basic
+
+    # set the I/O temp directory
+    #-Djava.io.tmpdir=$HOME
+
+    # set to headless, just in case
+    -Djava.awt.headless=true
+
+    # ensure UTF-8 encoding by default (e.g. filenames)
+    -Dfile.encoding=UTF-8
+
+    # use our provided JNA always versus the system one
+    #-Djna.nosys=true
+
+    # Turn on JRuby invokedynamic
+    -Djruby.compile.invokedynamic=true
+    # Force Compilation
+    -Djruby.jit.threshold=0
+    # Make sure joni regexp interruptability is enabled
+    -Djruby.regexp.interruptible=true
+
+    ## heap dumps
+
+    # generate a heap dump when an allocation from the Java heap fails
+    # heap dumps are created in the working directory of the JVM
+    -XX:+HeapDumpOnOutOfMemoryError
+
+    # specify an alternative path for heap dumps
+    # ensure the directory exists and has sufficient space
+    #-XX:HeapDumpPath=${LOGSTASH_HOME}/heapdump.hprof
+
+    ## GC logging
+    #-XX:+PrintGCDetails
+    #-XX:+PrintGCTimeStamps
+    #-XX:+PrintGCDateStamps
+    #-XX:+PrintClassHistogram
+    #-XX:+PrintTenuringDistribution
+    #-XX:+PrintGCApplicationStoppedTime
+
+    # log GC status to a file with time stamps
+    # ensure the directory exists
+    #-Xloggc:${LS_GC_LOG_FILE}
+
+    # Entropy source for randomness
+    -Djava.security.egd=file:/dev/urandom
+
+    # Copy the logging context from parent threads to children
+    -Dlog4j2.isThreadContextMapInheritable=true
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app: logstash-nginx-pipeline
+  name: logstash-nginx-pipeline
+  namespace: elk
+data:
+  filter_main.conf: |-
+    filter {
+      grok {
+        break_on_match => true
+        patterns_dir => ["/usr/share/logstash/patterns"]
+        match => { "message" => "%{TIMESTAMP_ISO8601:timestamp} - %{IPV4:remote_addr} - %{HOSTNAME:hostname} - %{HTTP_METHOD:method} %{URIPATHPARAM:path} %{DATA} - %{NUMBER:status} - %{NUMBER:request_time}" }
+        match => { "message" => "%{NGINX_ERROR_TIMESTAMP:timestamp}%{SPACE}%{LOGLEVEL:level}%{SPACE}%{GREEDYDATA}" }
+      }
+      date { match =>["timestamp", "yyyy-MM-dd'T'HH:mm:ss'+08:00","yyyy/MM/dd HH:mm:ss"] }
+      mutate { remove_field => ['timestamp'] }
+      mutate {
+        convert => ["request_time", "float"]
+      }
+    }
+  input_main.conf: |-
+    input {
+      kafka {
+        id => "nginx"
+        client_id => "nginx"
+        bootstrap_servers => '{{ kafka_hosts_str }}'
+        topics => ["log-nginx"]
+        type => "log"
+        codec => json { charset => "UTF-8" }
+        consumer_threads => 8
+        auto_offset_reset => latest
+        decorate_events => false
+      }
+    }
+  output_main.conf: |-
+    output {
+      # stdout { codec => rubydebug }
+      elasticsearch {
+        hosts => {{ es_hosts_arr }}
+        manage_template => true
+        template_name => "app-log"
+        index => "log-nginx-%{+YYYY-MM}"
+      }
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app: logstash-nginx-patterns
+  name: logstash-nginx-patterns
+  namespace: elk
+data:
+  main: |-
+    NGINX_ERROR_TIMESTAMP %{YEAR}/%{MONTHNUM}/%{MONTHDAY} %{HOUR}:%{MINUTE}:%{SECOND}
+    HTTP_METHOD (GET|POST|DELETE|PATH|HEAD|PUT)
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: logstash-nginx
+  namespace: elk
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: logstash-nginx
+    spec:
+      tolerations:
+        - key: node.kubernetes.io/not-ready
+          operator: Exists
+          effect: NoExecute
+          tolerationSeconds: 2
+        - key: node.kubernetes.io/unreachable
+          operator: Exists
+          effect: NoExecute
+          tolerationSeconds: 2
+      containers:
+        - name: logstash-nginx
+          image: "{{ image_repository }}/public/logstash:7.10.2"
+          imagePullPolicy: Always
+          env:
+            - name: TZ
+              value: "Asia/Shanghai"
+          resources:
+            limits:
+              memory: '8Gi'
+              cpu: '4'
+            requests:
+              memory: '4Gi'
+              cpu: '1'
+          volumeMounts:
+            - name: logstash-nginx-pipeline
+              mountPath: /usr/share/logstash/pipeline
+            - name: logstash-nginx-config
+              mountPath: /usr/share/logstash/config/logstash.yml
+              subPath: logstash.yml
+            - name: logstash-nginx-patterns
+              mountPath: /usr/share/logstash/patterns
+            - name: timezone
+              mountPath: /etc/localtime
+            - name: jvm-options
+              mountPath: /usr/share/logstash/config/jvm.options
+              subPath: jvm.options
+          lifecycle:
+            preStop:
+              exec:
+                command: [ "sleep", "40" ]
+      terminationGracePeriodSeconds: 120
+      volumes:
+        - name: logstash-nginx-config
+          configMap:
+            name: logstash-config
+        - name: logstash-nginx-pipeline
+          configMap:
+            name: logstash-nginx-pipeline
+        - name: logstash-nginx-patterns
+          configMap:
+            name: logstash-nginx-patterns
+        - name: timezone
+          hostPath:
+            path: /etc/localtime
+        - name: jvm-options
+          configMap:
+            name: logstash-nginx-jvm
+      securityContext:
+        runAsUser: 0
+        fsGroup: 1000
+  selector:
+    matchLabels:
+      app: logstash-nginx

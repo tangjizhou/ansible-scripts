@@ -1,0 +1,104 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: autocreate-kibana-pattern
+  namespace: elk
+  labels:
+    app: autocreate-kibana-pattern
+data:
+  autocreate-kibana-pattern.sh: |
+    #!/bin/bash
+    kibana_host=${KIBANA_HOST}
+    es_host=${ES_HOST}
+    pattern_keep_months=${PATTERN_KEEP_MONTHS:-2}
+
+    if [ -z $kibana_host ]; then
+        echo "env KIBANA_HOST is required"
+        exit 1
+    fi
+    if [ -z $es_host ]; then
+        echo "env ES_HOST is required"
+        exit 1
+    fi
+
+    current_month=$(date '+%Y-%m')
+    last_month=$(date +%Y-%m -d "$pattern_keep_months month ago")
+    # 查询es的index,创建kibana的pattern
+    indices=$(curl http://$es_host/_cat/indices/log-*$current_month* | cut -d ' ' -f3)
+    for index in $indices;do
+    index_prefix=${index%${current_month}*}
+    pattern=$index_prefix*
+
+    curl -X POST -H "Content-Type: application/json" -H "kbn-version: 7.10.2" -d@- --url http://$kibana_host/api/saved_objects/index-pattern << EOF
+    {
+      "attributes": {
+        "title": "$pattern",
+        "timeFieldName": "@timestamp"
+      }
+    }
+    EOF
+    done
+
+    # 删除过期的pattern
+    index_pattern_ids=$(curl -XGET http://$kibana_host/api/saved_objects/_find?type=index-pattern\&per_page=1000\&search=$last_month* | jq  -r --arg last_month $last_month '.saved_objects | .[] | select(.attributes.title | contains($last_month)) | .id')
+    for index_pattern_id in $index_pattern_ids ; do
+    echo "delete kibana pattern ${index_pattern_id}"
+    curl -X DELETE -H "kbn-version: 7.10.2" http://$kibana_host/api/index_patterns/index_pattern/$index_pattern_id
+    done
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  namespace: elk
+  name: autocreate-kibana-pattern
+  labels:
+    app: autocreate-kibana-pattern
+spec:
+  failedJobsHistoryLimit: 1
+  successfulJobsHistoryLimit: 1
+  concurrencyPolicy: Replace
+  startingDeadlineSeconds: 20
+  suspend: true
+  schedule: "*/10 * * * *"
+  jobTemplate:
+    metadata:
+      labels:
+        app: autodelete-es-index-pattern
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: alpine-curl-jq
+              image: "{{ image_repository }}/public/curl-jq:debian"
+              command: [ "/bin/bash", "-c", "/kibana/autocreate-kibana-pattern.sh" ]
+              env:
+                - name: KIBANA_HOST
+                  value: "kibana.elk:5601"
+                - name: ES_HOST
+                  value: "elasticsearch.elk:9200"
+                - name: PATTERN_KEEP_MONTHS
+                  value: '2'
+                - name: TZ
+                  value: "Asia/Shanghai"
+              volumeMounts:
+                - mountPath: /kibana/autocreate-kibana-pattern.sh
+                  subPath: autocreate-kibana-pattern.sh
+                  name: autocreate-kibana-pattern
+                - name: timezone
+                  mountPath: /etc/localtime
+              resources:
+                requests:
+                  cpu: '20m'
+                  memory: 10Mi
+                limits:
+                  cpu: '100m'
+                  memory: 50Mi
+          volumes:
+            - name: autocreate-kibana-pattern
+              configMap:
+                name: autocreate-kibana-pattern
+                defaultMode: 0770
+            - name: timezone
+              hostPath:
+                path: /etc/localtime

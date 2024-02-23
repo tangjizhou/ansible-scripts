@@ -1,0 +1,8 @@
+es_root_dir: '/data01/es'
+es_cluster_name: 'es-cluster'
+es_java_opts: '-Xms32G -Xmx32G'
+es_log_replicas: 1
+es_log_shards: 5
+es_initial_master_nodes: '{{ groups["elasticsearch"] | list | to_json }}'
+es_hosts_arr: '{{ groups["elasticsearch"] | map("regex_replace", "^(.*)$","\1:9200") | list | to_json }}'
+es_hosts_arr_http: '{{ groups["elasticsearch"] | map("regex_replace", "^(.*)$","http://\1:9200") | list | to_json }}'

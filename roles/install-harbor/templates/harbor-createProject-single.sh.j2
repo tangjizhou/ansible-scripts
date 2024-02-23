@@ -1,0 +1,37 @@
+#!/bin/bash
+##harbor 使用API接口写入同步仓库数据
+##脚本执行依赖jq，需要先安装jq
+
+harbor_ip={{ ansible_default_ipv4.address }}
+harbor_user={{ admin_harbor_account }}
+harbor_pass={{ admin_harbor_password }}
+random_num=$RANDOM
+
+encrypt_base64=`echo -n "${harbor_user}:${harbor_pass}" | base64`
+
+###创建项目project
+for project in calico dashboard google_containers public traefik
+do
+	random_num_project=$RANDOM
+	curl -X 'POST' \
+	  'http://'${harbor_ip}'/api/v2.0/projects' \
+	  -H 'accept: application/json' \
+	  -H 'X-Request-Id: fd4b2a79-04ac-4d1a-8025-9a0fa9'${random_num_project}'7' \
+	  -H 'X-Resource-Name-In-Location: true' \
+	  -H 'authorization: Basic '${encrypt_base64}'' \
+	  -H 'Content-Type: application/json' \
+	  -H 'X-Harbor-CSRF-Token: K/imV/nxAwhe2XsIOn9QSYyC2SgcO3NtN4gA9pd5CHeaHFnR43sROyrqi2FoFS2ITlvyBu4DnEtB2jjRYJwYlw==' \
+	  -d '{
+	  "project_name": "'${project}'",
+	  "storage_limit": 0,
+	  "metadata": {
+		"enable_content_trust": "false",
+		"enable_content_trust_cosign": "false",
+		"auto_scan": "false",
+		"severity": "none",
+		"prevent_vul": "false",
+		"public": "true",
+		"reuse_sys_cve_allowlist": "false"
+	  }
+	}'
+done

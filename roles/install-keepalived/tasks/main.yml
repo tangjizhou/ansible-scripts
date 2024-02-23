@@ -1,0 +1,33 @@
+- name: 安装keepalived
+  apt:
+    name: keepalived
+    update_cache: true
+    state: present
+
+- name: 发送配置文件keepalived.conf
+  template:
+    src: keepalived.conf.j2
+    dest: /etc/keepalived/keepalived.conf
+
+- name: 创建keepalived数据目录
+  file:
+    path: '{{ keepalived_root_dir }}'
+    state: directory
+
+- name: 配置并发送健康检查脚本{{ health_check_local_script }}
+  template:
+    src: '{{ health_check_local_script }}.j2'
+    dest: '{{ keepalived_root_dir }}/{{ health_check_local_script }}'
+    mode: 0744
+
+- name: 发送系统控制文件keepalived.service
+  template:
+    src: keepalived.service
+    dest: /lib/systemd/system/keepalived.service
+
+- name: 启动Keepalived，配置开启自启
+  systemd:
+    name: keepalived
+    daemon_reload: yes
+    state: restarted
+    enabled: yes

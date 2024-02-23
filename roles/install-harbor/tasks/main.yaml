@@ -1,0 +1,60 @@
+- name: 创建harbor根目录
+  file:
+    path: '{{ harbor_root_dir }}'
+    state: directory
+
+- name: 检查是否已存在harbor-data数据目录
+  stat:
+    path: '{{ harbor_data_volume }}'
+  register: harbor_data
+
+- name: 发送harbor安装包
+  unarchive:
+    src: "{{ package_dir }}/harbor/harbor.tar.gz"
+    dest: "{{ harbor_root_dir }}"
+  when: harbor_data.stat.exists == false
+
+- name: 发送配置文件harbor.yml
+  template:
+    src: harbor.yml.j2
+    dest: "{{ harbor_root_dir }}/harbor.yml"
+
+- name: 发送启动脚本install-me.sh
+  template:
+    src: install-me.sh.j2
+    dest: "{{ harbor_root_dir }}/install-me.sh"
+    mode: 0777
+
+- name: 启动harbor安装install-me脚本
+  shell: "cd {{ harbor_root_dir }} && chmod a+x ./install.sh && ./install.sh"
+  args:
+    chdir: "{{ harbor_root_dir }}"
+
+- name: 关闭harbor
+  shell: "/usr/bin/docker compose -f {{ harbor_root_dir }}/docker-compose.yml down"
+
+- name: 发送系统控制文件harbor.service
+  template:
+    src: harbor.service.j2
+    dest: "/usr/lib/systemd/system/harbor.service"
+
+- name: 设置harbor开机自启
+  systemd:
+    name: harbor.service
+    daemon_reload: yes
+    enabled: yes
+    state: started
+
+- name: 检查harbor启动状态
+  wait_for:
+    port: '{{ harbor_port }}'
+    delay: 20
+    timeout: 120
+    msg: 'Timeout waiting for harbor respond'
+
+- name: 重启keepalived
+  systemd:
+    name: keepalived.service
+    daemon_reload: yes
+    enabled: yes
+    state: started

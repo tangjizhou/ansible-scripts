@@ -1,0 +1,14 @@
+version: '3'
+services:
+  mail-server:
+    container_name: mail-server
+    hostname: {{ mail_server_host }}
+    image: {{ image_repository }}/public/analogic/poste.io:latest
+    network_mode: host
+    restart: always
+    environment:
+      - TZ=Asia/Shanghai
+      - DISABLE_CLAMAV=TRUE
+      - DISABLE_RSPAMD=TRUE
+    volumes:
+      - ./data:/data

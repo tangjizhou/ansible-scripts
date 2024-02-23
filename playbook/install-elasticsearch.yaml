@@ -1,0 +1,23 @@
+- name: 服务器初始化
+  ignore_errors: false
+  gather_facts: false
+  hosts:
+    - elasticsearch
+  roles:
+    - disable-firewalld
+    - change-hostname
+    - change-sysconf
+    - install-dns-client
+    - install-apt-source
+    - install-ntp-client
+    - install-docker
+
+ ##安装elasticsearch集群
+- name: install elasticsearch cluster
+  hosts:
+    - elasticsearch
+  gather_facts: true
+  ignore_errors: false
+  roles:
+    - install-elasticsearch
+    - install-node-exporter

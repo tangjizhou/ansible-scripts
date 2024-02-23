@@ -1,0 +1,13 @@
+[Unit]
+Description=plantu-agent service
+After=network.target local-fs.target remote-fs.target
+
+[Service]
+ExecStart=/data01/Agent/plantu-agent --no-daemon
+SuccessExitStatus=143
+StartLimitInterval=0s
+Restart=always
+RestartSec=1
+
+[Install]
+WantedBy=multi-user.target

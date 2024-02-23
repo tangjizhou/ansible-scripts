@@ -1,0 +1,107 @@
+#- name: create dirs
+#  file:
+#    path: "{{ rocketmq_root_dir }}"
+#    state: directory
+
+- name: install unzip
+  apt:
+    name: unzip
+    state: latest
+    update_cache: yes
+
+- name: send rocketmq to remote for broker
+  unarchive:
+    src: "{{ rocketmq_package_dir }}/rocketmq-all-4.9.7-bin-release.zip"
+    dest: "/data01"
+
+- name: 修改rocketmq工作目录的name
+  shell: "mv rocketmq-all-4.9.7-bin-release  rocketmq"
+  args:
+    chdir: "/data01"
+
+- name: remove rocketmq old conf
+  shell: rm -rf {{ rocketmq_root_dir }}/conf/2m-2s-sync/*.properties
+
+- name: send rocketmq master conf
+  template:
+    src: broker-{{ role }}.properties.j2
+    dest: "{{ rocketmq_root_dir }}/conf/2m-2s-sync/{{ broker_name }}.properties"
+
+- name: set mq env conf
+  lineinfile:
+    dest: /etc/profile
+    line: "{{ item }}"
+  with_items:
+    - "export RMQ_BIN={{ rocketmq_root_dir }}/bin"
+    - "export PATH=$RMQ_BIN:$PATH"
+    - "export ROCKETMQ_HOME={{ rocketmq_root_dir }}"
+
+- name: enable profile
+  shell: . /etc/profile
+
+- name: remove rocketmq logs
+  shell: rm -rf {{ rocketmq_root_dir }}/logs
+
+- name: create rocketmq log dir
+  file:
+    path: '{{ rocketmq_root_dir }}/logs'
+    state: directory
+
+- name: list logback conf files
+  find:
+    paths:
+      - "{{ rocketmq_root_dir }}/conf"
+    patterns:
+      - "logback*.xml"
+  register: logback_conf
+
+- name: replace log path
+  replace:
+    path: "{{ item.path }}"
+    regexp: "\\$\\{user.home\\}"
+    replace: "{{ rocketmq_root_dir }}"
+  with_items:
+    - "{{ logback_conf.files }}"
+
+- name: copy rocketmq unit service
+  template:
+    src: rocketmq.service.j2
+    dest: /usr/lib/systemd/system/rocketmq.service
+
+- name: change disk scheduler for rocketmq broker &
+  shell: |
+    DISK=`df -k | sort -n -r -k 2 | awk -F/ 'NR==1 {gsub(/[0-9].*/,"",$3); print $3}'`
+    [ "$DISK" = 'cciss' ] && DISK='cciss!c0d0'
+    echo 'deadline' > /sys/block/${DISK}/queue/scheduler
+    if [ -d ${HOME}/tmpfs ] ; then
+        echo "tmpfs exist, do nothing."
+    else
+        ln -s /dev/shm ${HOME}/tmpfs
+        echo "create tmpfs ok"
+    fi
+
+- name: link rockemtq tmpfs
+  file:
+    src: /dev/shm
+    dest: ${HOME}/tmpfs
+    state: link
+
+- name: chown rocketmq dir
+  file:
+    path: '{{ rocketmq_root_dir }}'
+    owner: '{{ rocketmq_user }}'
+    group: '{{ rocketmq_group }}'
+    recurse: yes
+
+- name: 修改broker-JVM参数02
+  lineinfile:
+    path: "{{ rocketmq_root_dir }}/bin/runbroker.sh"
+    regexp: "-server -Xms8g -Xmx8g"
+    line: "JAVA_OPT=\"${JAVA_OPT} -server {{ rocketmq_jvm_broker_args }}\" "
+
+- name: start rocketmq unit service
+  systemd:
+    name: rocketmq
+    daemon_reload: yes
+    enabled: yes
+    state: restarted

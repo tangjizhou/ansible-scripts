@@ -1,0 +1,49 @@
+#!/bin/bash
+
+# ntp判断， 1表示正常，0表示失败
+ntp_sync_status=`/usr/sbin/ntpq -pn | grep -E -c '^\*'`
+
+# ntpd状态
+ntp_service_status=`ps aux | grep ntpd | grep -v grep | wc -l`
+
+# remote指标
+remote=`/usr/sbin/ntpq -pn | grep -E `'^\*' | awk '{print $1}'
+remote_ip=`echo ${remote#\*}`
+
+# jitter指标
+jitter=`/usr/sbin/ntpq -pn | grep -E '^\*' | awk '{print $10}'`
+
+# offset指标
+offset=`/usr/sbin/ntpq -pn | grep -E '^\*' | awk '{print $9}'`
+
+echo "# HELP ntp_status 1 is ok" > {{ node_exporter_root_dir }}/ntp_check
+echo "# TYPE ntp_status gauge" >> {{ node_exporter_root_dir }}/ntp_check
+
+if [ $ntp_sync_status -eq 0 ] || [ $ntp_service_status -eq 0 ];then
+   echo 0
+   echo "ntp_status 0" >> {{ node_exporter_root_dir }}/ntp_check
+else
+   echo "ntp_status{remote=\"$remote_ip\"} 1" >> {{ node_exporter_root_dir }}/ntp_check
+fi
+
+echo "# HELP ntp_status_jitter 1 is ok" > {{ node_exporter_root_dir }}/ntp_check
+echo "# TYPE ntp_status_jitter gauge" >> {{ node_exporter_root_dir }}/ntp_check
+
+if [ $ntp_sync_status -eq 0 ] || [ $ntp_service_status -eq 0 ];then
+   echo 0
+   echo "ntp_status_jitter 0" >> {{ node_exporter_root_dir }}/ntp_check
+else
+   echo "ntp_status_jitter $jitter" >> {{ node_exporter_root_dir }}/ntp_check
+fi
+
+echo "# HELP ntp_status_offset 1 is ok" > {{ node_exporter_root_dir }}/ntp_check
+echo "# TYPE ntp_status_offset gauge" >> {{ node_exporter_root_dir }}/ntp_check
+
+if [ $ntp_sync_status -eq 0 ] || [ $ntp_service_status -eq 0 ];then
+   echo 0
+   echo "ntp_status_offset 0" >> {{ node_exporter_root_dir }}/ntp_check
+else
+   echo "ntp_status_offset $offset" >> {{ node_exporter_root_dir }}/ntp_check
+fi
+
+mv {{ node_exporter_root_dir }}/ntp_check {{ node_exporter_root_dir }}/logs/ntp_check.prom

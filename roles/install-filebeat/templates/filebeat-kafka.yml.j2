@@ -1,0 +1,26 @@
+filebeat.inputs:
+  - type: log
+    paths:
+      - "{{ kafka_root_dir }}/logs/*.log"
+    multiline.pattern: '^\[\d{4}-\d{1,2}-\d{1,2}'
+    multiline.negate: true
+    multiline.match: after
+    processors:
+      - add_fields:
+          target: ''
+          fields:
+            kubernetes.labels.app: kafka
+            kubernetes.namespace: kafka
+output.kafka:
+  hosts: {{ kafka_hosts_arr }}
+  topic: log-kafka
+  required_acks: -1
+  worker: 8
+logging.to_files: true
+logging.files:
+  path: {{ filebeat_root_dir }}/logs
+  name: filebeat
+  keepfiles: 7
+  rotateeverybytes: 104857600
+  interval: 24h
+  permissions: 0640

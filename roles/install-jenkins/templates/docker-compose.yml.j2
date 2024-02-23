@@ -1,0 +1,18 @@
+version: '3'
+services:
+  jenkins:
+    image: '{{ image_repository }}/public/jenkins-denny:2.0'
+    mirror_url: test
+    localRepository: /repo
+    server_username: admin
+    server_password: admin
+    restart: always
+    network_mode: host
+    volumes:
+#     - './data:/var/jenkins_home'
+      - $PWD/repo/:/repo/
+
+# 使用
+# 1. docker-compose up -d
+# 2. docker cp dddd:/var/jenkins_home/ ./data 拷贝docker数据到当前目录
+# 3. 开启data目录挂载，重启docker

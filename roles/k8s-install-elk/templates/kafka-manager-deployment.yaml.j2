@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-manager
+  namespace: elk
+  labels:
+    app: kafka-manager
+spec:
+  replicas: 1
+  template:
+    metadata:
+      name: kafka-manager
+      labels:
+        app: kafka-manager
+    spec:
+      containers:
+        - name: kafka-manager
+          image: '{{ image_repository }}/public/kowl:latest'
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: KAFKA_BROKERS
+              value: "{{ kafka_hosts_str }}"
+            - name: TZ
+              value: "Asia/Shanghai"
+          volumeMounts:
+            - name: timezone
+              mountPath: /etc/localtime
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "200Mi"
+            limits:
+              cpu: "2"
+              memory: "2Gi"
+      volumes:
+        - name: timezone
+          hostPath:
+            path: /etc/localtime 
+      restartPolicy: Always
+      tolerations:
+        - key: node.kubernetes.io/not-ready
+          operator: Exists
+          effect: NoExecute
+          tolerationSeconds: 2
+        - key: node.kubernetes.io/unreachable
+          operator: Exists
+          effect: NoExecute
+          tolerationSeconds: 2
+  selector:
+    matchLabels:
+      app: kafka-manager
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-manager
+  namespace: elk
+spec:
+  selector:
+    app: kafka-manager
+  ports:
+    - port: 8080
+  type: ClusterIP
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: websocket-connection-header
+  namespace: elk
+spec:
+  headers:
+    customRequestHeaders:
+      Connection: "upgrade"
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: kafka-manager
+  namespace: elk
+spec:
+  entryPoints:
+    - web
+  routes:
+    - kind: Rule
+      match: Host(`{{ kafka_manager_domain }}`)
+      middlewares:
+        - name: websocket-connection-header
+      services:
+        - name: kafka-manager
+          port: 8080
+          passHostHeader: true

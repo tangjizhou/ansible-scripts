@@ -1,0 +1,138 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    prometheus: k8s
+    role: alert-rules
+  name: topic-rules
+  namespace: monitoring
+spec:
+  groups:
+    - name: rocketmq-topic-rules
+      rules:
+        - alert: MES-topic消费延迟告警
+          expr: (sum by(topic) (rocketmq_producer_offset{topic=~"MES.*"}) - on(topic) group_right() sum by(group, topic) (rocketmq_consumer_offset{topic=~"MES.*"})) - ignoring(group) group_left() sum by(topic) (avg_over_time(rocketmq_producer_tps{topic=~"MES.*"}[5m])) * 5 * 60 > 1000
+          for: 10m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "Mark.Zhao@sienidm.com"
+            #邮件抄送人
+            mail_cc: "Rainy.Liu@sienidm.com,Denny.Mou@sienidm.com"
+            #短信接收人
+            #phones: ""
+            #ITSM事件单
+            #alarm_owner: ""
+            #welink接收人
+            #workNo: ""
+          annotations:
+            description: "consumer={{$labels.group}},topic={{$labels.topic}}消费延迟，延迟量{{$value}}"
+        - alert: SPC-topic消费延迟告警
+          expr: (sum by(topic) (rocketmq_producer_offset{topic=~"spc.*"}) - on(topic) group_right() sum by(group, topic) (rocketmq_consumer_offset{topic=~"spc.*"})) - ignoring(group) group_left() sum by(topic) (avg_over_time(rocketmq_producer_tps{topic=~"spc.*"}[5m])) * 5 * 60 > 1000
+          for: 10m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "Mark.Zhao@sienidm.com"
+            #邮件抄送人
+            mail_cc: "Rainy.Liu@sienidm.com,Denny.Mou@sienidm.com"
+            #短信接收人
+            #phones: ""
+            #ITSM事件单
+            #alarm_owner: ""
+            #welink接收人
+            #workNo: ""
+          annotations:
+            description: "consumer={{$labels.group}},topic={{$labels.topic}}消费延迟，延迟量{{$value}}"
+        - alert: AMS-topic消费延迟告警
+          expr: (sum by(topic) (rocketmq_producer_offset{topic=~"AMS.*"}) - on(topic) group_right() sum by(group, topic) (rocketmq_consumer_offset{topic=~"AMS.*"})) - ignoring(group) group_left() sum by(topic) (avg_over_time(rocketmq_producer_tps{topic=~"AMS.*"}[5m])) *5 *60 > 10000
+          for: 10m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "Mark.Zhao@sienidm.com"
+            #邮件抄送人
+            mail_cc: "Rainy.Liu@sienidm.com,Denny.Mou@sienidm.com"
+            #短信接收人
+            #phones: ""
+            #ITSM事件单
+            #alarm_owner: ""
+            #welink接收人
+            #workNo: ""
+          annotations:
+            description: "consumer={{$labels.group}},topic={{$labels.topic}}消费延迟，延迟量{{$value}}"
+        - alert: APC-topic消费延迟告警
+          expr: (sum by(topic) (rocketmq_producer_offset{topic=~"APC.*"}) - on(topic) group_right() sum by(group, topic) (rocketmq_consumer_offset{topic=~"APC.*"})) - ignoring(group) group_left() sum by(topic) (avg_over_time(rocketmq_producer_tps{topic=~"APC.*"}[5m])) *5 *60 > 10000
+          for: 10m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "Eric.Xu@sienidm.com"
+            #邮件抄送人
+            mail_cc: "Rainy.Liu@sienidm.com,Denny.Mou@sienidm.com"
+            #短信接收人
+            #phones: ""
+            #ITSM事件单
+            #alarm_owner: ""
+            #welink接收人
+            #workNo: ""
+          annotations:
+            description: "consumer={{$labels.group}},topic={{$labels.topic}}消费延迟，延迟量{{$value}}"
+        - alert: UAC-topic消费延迟告警
+          expr: (sum by(topic) (rocketmq_producer_offset{topic=~"UAC.*"}) - on(topic) group_right() sum by(group, topic) (rocketmq_consumer_offset{topic=~"UAC.*"})) - ignoring(group) group_left() sum by(topic) (avg_over_time(rocketmq_producer_tps{topic=~"UAC.*"}[5m])) *5 *60 > 10000
+          for: 10m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "Mark.Zhao@sienidm.com"
+            #邮件抄送人
+            mail_cc: "Rainy.Liu@sienidm.com,Denny.Mou@sienidm.com"
+            #短信接收人
+            #phones: ""
+            #ITSM事件单
+            #alarm_owner: ""
+            #welink接收人
+            #workNo: ""
+          annotations:
+            description: "consumer={{$labels.group}},topic={{$labels.topic}}消费延迟，延迟量{{$value}}"
+        - alert: SDR-topic消费延迟告警
+          expr: (sum by(topic) (rocketmq_producer_offset{topic=~"SDR.*"}) - on(topic) group_right() sum by(group, topic) (rocketmq_consumer_offset{topic=~"SDR.*"})) - ignoring(group) group_left() sum by(topic) (avg_over_time(rocketmq_producer_tps{topic=~"SDR.*"}[5m])) *5 *60 > 10000
+          for: 10m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "Yu.Liao@sienidm.com"
+            #邮件抄送人
+            mail_cc: "Rainy.Liu@sienidm.com,Denny.Mou@sienidm.com"
+            #短信接收人
+            #phones: ""
+            #ITSM事件单
+            #alarm_owner: ""
+            #welink接收人
+            #workNo: ""
+          annotations:
+            description: "consumer={{$labels.group}},topic={{$labels.topic}}消费延迟，延迟量{{$value}}"
+        - alert: Notice-topic消费延迟告警
+          expr: (sum by(topic) (rocketmq_producer_offset{topic=~"NOTICE.*"}) - on(topic) group_right() sum by(group, topic) (rocketmq_consumer_offset{topic=~"NOTICE.*"})) - ignoring(group) group_left() sum by(topic) (avg_over_time(rocketmq_producer_tps{topic=~"NOTICE.*"}[5m])) *5 *60 > 10000
+          for: 10m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "Mark.Zhao@sienidm.com"
+            #邮件抄送人
+            mail_cc: "Rainy.Liu@sienidm.com,Denny.Mou@sienidm.com"
+            #短信接收人
+            #phones: ""
+            #ITSM事件单
+            #alarm_owner: ""
+            #welink接收人
+            #workNo: ""
+          annotations:
+            description: "consumer={{$labels.group}},topic={{$labels.topic}}消费延迟，延迟量{{$value}}"

@@ -1,0 +1,7 @@
+- name: 安装gaussdb 脚本监控
+  gather_facts: false
+  ignore_errors: false
+  hosts: gauss-db
+  roles:
+    - install-gaussdb-logstash
+    - install-gaussdb-scriptMonitor

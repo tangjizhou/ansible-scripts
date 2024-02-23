@@ -1,0 +1,19 @@
+- name: 检查源文件
+  stat:
+    path: /etc/apt/sources.list
+  register: check_apt_file
+
+- name: 备份源文件
+  shell: "mv sources.list sources.list.bak"
+  args:
+    chdir: /etc/apt/
+  when: check_apt_file.stat.exists == true
+
+- name: 发送source源文件
+  template:
+    src: sources.list.j2
+    dest: "/etc/apt/sources.list"
+
+- name: update
+  apt:
+    update_cache: true

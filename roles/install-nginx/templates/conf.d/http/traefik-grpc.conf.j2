@@ -1,0 +1,13 @@
+server {
+    listen      9090 http2 backlog=65534 default_server;
+    listen [::]:9090 http2 backlog=65534 default_server;
+    server_name {{ domain_base }};
+
+    location / {
+        client_max_body_size 2048m;
+        grpc_send_timeout 300s;
+        grpc_read_timeout 300s;
+        grpc_buffer_size 512k;
+        grpc_pass grpc://traefik-grpc;
+    }
+}

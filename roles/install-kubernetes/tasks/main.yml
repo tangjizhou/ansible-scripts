@@ -1,0 +1,40 @@
+#- name: rm rpm
+#  shell: rm -rf /tmp/rpm
+#
+#- name: copy rpm
+#  copy:
+#    src: "{{ package_dir }}/k8s-1.18.19"
+#    dest: /tmp/
+#- name: install rpm
+#  shell: yum -y localinstall /tmp/k8s-1.18.19/*
+#
+#- name: 安装kubeadm kubectl kubelet
+#  apt:
+#    name:
+#      - kubelet
+#      - kubeadm
+#      - kubectl
+#    update_cache: true
+#    state: present
+
+#- name: ipforward=1
+#  template:
+#    src: 99-kubernetes-cri.conf.j2
+#    dest: /etc/sysctl.d/99-kubernetes-cri.conf
+#
+#- name: 使修改的配置生效
+#  shell: "sysctl -p /etc/sysctl.d/99-kubernetes-cri.conf"
+
+#- name: specify node ip
+#  lineinfile:
+#    path: /etc/sysconfig/kubelet
+#    regexp: "^KUBELET_EXTRA_ARGS"
+#    line: "KUBELET_EXTRA_ARGS=--node-ip={{ ansible_ssh_host }}"
+#    state: present
+#
+#- name: restart kubelet
+#  systemd:
+#    name: kubelet
+#    daemon_reload: yes
+#    enabled: yes
+#    state: restarted

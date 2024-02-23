@@ -1,0 +1,331 @@
+#!/usr/bin/env python3.8.10
+# -*- coding:utf-8 -*-
+# @author Rainy
+
+import base64
+import subprocess
+import json
+import time
+import random
+
+harbor_ip = "{{ harbor_keepalived_vip }}"
+harbor_port = "{{ harbor_port }}"
+harbor_username = "{{ admin_harbor_account }}"
+harbor_password = "{{ admin_harbor_password }}"
+
+
+class HarborClient:
+
+    def __init__(self, har_username, har_password):
+        self.username = har_username
+        self.password = har_password
+
+        self.login_user = "{}".format(self.username)
+        self.login_pass = "{}".format(self.password)
+        self.auth_data = "{}:{}".format(self.login_user, self.login_pass)
+        self.encoded_data = base64.b64encode(self.auth_data.encode()).decode()
+
+        # project API接口
+        self.project_url = "http://{}:{}/api/v2.0/projects".format(harbor_ip, harbor_port)
+        # user API接口
+        self.user_url = "http://{}:{}/api/v2.0/users".format(harbor_ip, harbor_port)
+
+        # headers
+        self.headers = " -H 'accept: application/json' -H 'content-type: application/json' -H 'authorization: Basic {}'".format(
+            self.encoded_data)
+
+    def execute_command(self, command):
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        output, error = process.communicate()
+        return output, error
+
+    # 创建远程仓库
+    def create_registry(self, registry_remote_name, registry_remote_ip, registry_ip):
+        # registry_data
+        registry_data = {
+            "credential": {
+                "access_key": "{}".format(harbor_username),
+                "access_secret": "{}".format(harbor_password)
+            },
+            "insecure": True,
+            "name": "{}".format(registry_remote_name),
+            "type": "harbor",
+            "id": 1,
+            "url": "http://{}".format(registry_remote_ip)
+        }
+
+        json_registry_data = json.dumps(registry_data)
+        # Registry API接口
+        registry_url = "http://{}:{}/api/v2.0/registries".format(registry_ip, harbor_port)
+        registry_headers = " -H 'accept: application/json' -H 'content-type: application/json' -H 'authorization: Basic {}'".format(
+            self.encoded_data)
+        harbor_registry_url = "'" + registry_url + "'" + registry_headers + " -d '" + json_registry_data + "'"
+        registry_curl_command = "curl -X POST {}".format(harbor_registry_url)
+        self.execute_command(registry_curl_command)
+        return "Registry={}创建完成".format(registry_remote_name)
+
+    # 创建同步复制策略
+    def create_replications(self, registry_remote_name, registry_remote_ip, registry_ip):
+        # 获取 registry_id
+        registry_url = "http://{}:{}/api/v2.0/registries?page=1&page_size=10".format(registry_ip, harbor_port)
+        check_registry_id_url = "'" + registry_url + "'" + self.headers
+        curl_command_registry = 'curl -X GET {}'.format(check_registry_id_url)
+        result_regis, error_regis = self.execute_command(curl_command_registry)
+        json_data_registry = json.loads(result_regis)
+        registry_id = json_data_registry[0]["id"]
+
+        # replication_data
+        replication_cron_data = {
+            "dest_namespace_replace_count": 1,
+            "dest_registry": {
+                "id": registry_id,
+                "name": "{}".format(registry_remote_name),
+                "status": "healthy",
+                "type": "harbor",
+                "url": "http://{}".format(registry_remote_ip)
+            },
+            "enabled": True,
+            "name": "crontab-{}".format(registry_remote_name),
+            "override": True,
+            "src_registry": {
+                "id": 0,
+                "insecure": True,
+                "name": "Local",
+                "status": "healthy",
+                "type": "harbor",
+                "url": "http://core:8080"
+            },
+            "trigger": {
+                "trigger_settings": {
+                    "cron": "0 0 1 * * *"
+                },
+                "type": "scheduled"
+            }
+        }
+        json_cron_data = json.dumps(replication_cron_data)
+
+        replication_event_data = {
+            "deletion": True,
+            "dest_namespace_replace_count": 1,
+            "dest_registry": {
+                "id": registry_id,
+                "name": "{}".format(registry_remote_name),
+                "status": "healthy",
+                "type": "harbor",
+                "url": "http://{}".format(registry_remote_ip)
+            },
+            "enabled": True,
+            "name": "event-{}".format(registry_remote_name),
+            "override": True,
+            "replicate_deletion": True,
+            "src_registry": {
+                "id": 0,
+                "insecure": True,
+                "name": "Local",
+                "status": "healthy",
+                "type": "harbor",
+                "url": "http://core:8080"
+            },
+            "trigger": {
+                "trigger_settings": {},
+                "type": "event_based"
+            }
+        }
+        json_event_data = json.dumps(replication_event_data)
+
+        # replication API接口
+        replication_url = "http://{}:{}/api/v2.0/replication/policies".format(registry_ip, harbor_port)
+        replication_headers = " -H 'accept: application/json' -H 'content-type: application/json' -H 'authorization: Basic {}'".format(
+            self.encoded_data)
+        # 创建定时任务
+        replication_cron_url = "'" + replication_url + "'" + replication_headers + " -d '" + json_cron_data + "'"
+        crontab_curl_command = "curl -X POST {}".format(replication_cron_url)
+        self.execute_command(crontab_curl_command)
+
+        # 创建事件驱动
+        replication_event_url = "'" + replication_url + "'" + replication_headers + " -d '" + json_event_data + "'"
+        event_curl_command = "curl -X POST {}".format(replication_event_url)
+        self.execute_command(event_curl_command)
+        return "Crontab && Replications 创建完成"
+
+    # 创建应用账户
+    def create_users(self, username, password, registry_ip):
+        # user_data
+        user_data = {
+            "username": "{}".format(username),
+            "password": "{}".format(password),
+            "realname": "{}".format(username),
+            "admin_role_in_auth": "false",
+            "email": "{}@pengxinxu.com".format(username)
+        }
+        json_user_data = json.dumps(user_data)
+
+        # user API接口
+        user_url = "http://{}:{}/api/v2.0/users".format(registry_ip, harbor_port)
+        harbor_user_url = "'" + user_url + "'" + self.headers + " -d '" + json_user_data + "'"
+        curl_command = "curl -X POST {}".format(harbor_user_url)
+        self.execute_command(curl_command)
+        return "registry={},user={}创建完成".format(registry_ip, username)
+
+    def create_project_private(self, project, registry_ip):
+        # project_data
+        project_data = {
+            "project_name": "{}".format(project),
+            "storage_limit": -1,
+            "metadata": {
+                "public": "false"
+            }
+        }
+
+        json_project_data = json.dumps(project_data)
+
+        # project AIP接口
+        project_url = "http://{}:{}/api/v2.0/projects".format(registry_ip, harbor_port)
+        harbor_project_url = "'" + project_url + "'" + self.headers + " -d '" + json_project_data + "'"
+        curl_command = "curl -X POST {}".format(harbor_project_url)
+        self.execute_command(curl_command)
+        return "registry={},project={}创建完成".format(registry_ip, project)
+
+    def create_project_public(self, project):
+        # project_data
+        project_data = {
+            "project_name": "{}".format(project),
+            "storage_limit": -1,
+            "metadata": {
+                "public": "true"
+            }
+        }
+
+        json_project_data = json.dumps(project_data)
+        harbor_project_url = self.project_url + self.headers + " -d '" + json_project_data + "'"
+        curl_command = 'curl -X POST {}'.format(harbor_project_url)
+        self.execute_command(curl_command)
+        return "project={}创建完成".format(project)
+
+    def link_user_to_project(self, username, project, registry_ip):
+        # 获取 project_id
+        project_url = "http://{}:{}/api/v2.0/projects".format(registry_ip, harbor_port)
+        check_project_id_url = "'" + project_url + "/{}".format(project) + "'" + self.headers
+        curl_command_project = 'curl -X GET {}'.format(check_project_id_url)
+        result_proj, error_proj = self.execute_command(curl_command_project)
+        json_data_proj = json.loads(result_proj)
+        project_id = json_data_proj["project_id"]
+
+        # 获取 user_id
+        user_url = "http://{}:{}/api/v2.0/users".format(registry_ip, harbor_port)
+        check_user_id_url = "'" + user_url + "/search?page=1&page_size=10&username={}".format(
+            username) + "'" + self.headers
+        curl_command_user = 'curl -X GET {}'.format(check_user_id_url)
+        result_str, error_user = self.execute_command(curl_command_user)
+        result_user = result_str.decode("utf-8")
+        json_data_user = json.loads(result_user)
+        user_id = json_data_user[0]["user_id"]
+
+        # project添加member
+        member_data = {
+            "role_id": 1,
+            "member_user": {
+                "username": "{}".format(username),
+                "user_id": user_id
+            }
+        }
+        json_member_data = json.dumps(member_data)
+        link_user_to_project_url = "'" + project_url + "/{}/members".format(
+            project_id) + "'" + self.headers + " -d '" + json_member_data + "'"
+        curl_command = "curl -X POST {}".format(link_user_to_project_url)
+        self.execute_command(curl_command)
+        return "registry={},user={}和project={}绑定完成".format(registry_ip, username, project)
+
+    def push_busybox(self, project):
+        image_tar = "/data01/package/harbor/images/busybox-1.34.tar"
+        busybox_images = "10.12.128.134:80/public/busybox:1.34"
+
+        command_login = "docker login {}:{} -u {} -p {}".format(harbor_ip, harbor_port, harbor_username,
+                                                                harbor_password)
+        command_load = "docker load -i {}".format(image_tar)
+        command_tag = "docker tag {} {}:{}/{}/busybox:1.34".format(busybox_images, harbor_ip, harbor_port, project)
+        command_push = "docker push {}:{}/{}/busybox:1.34".format(harbor_ip, harbor_port, project)
+
+        self.execute_command(command_login)
+        self.execute_command(command_load)
+        self.execute_command(command_tag)
+        self.execute_command(command_push)
+
+        return "{}:{}/{}/busybox:1.34 推送完成".format(harbor_ip, harbor_port, project)
+
+
+if __name__ == '__main__':
+    client = HarborClient(harbor_username, harbor_password)
+
+    registry_endp_name_a = "{{ registry_endp_name_a }}"
+    registry_endp_ip_a = "{{ registry_endp_ip_a }}"
+    registry_local_ip_a = "{{ registry_local_ip_a }}"
+
+    registry_endp_name_b = "{{ registry_endp_name_b }}"
+    registry_endp_ip_b = "{{ registry_endp_ip_b }}"
+    registry_local_ip_b = "{{ registry_local_ip_b }}"
+
+    remote_registries = [(registry_endp_name_a, registry_endp_ip_a, registry_local_ip_a),
+                         (registry_endp_name_b, registry_endp_ip_b, registry_local_ip_b)]
+
+    # 创建远程仓库
+    for sub_remote_reg in remote_registries:
+        registry_remote_name = sub_remote_reg[0]
+        registry_remote_ip = sub_remote_reg[1]
+        registry_ip = sub_remote_reg[2]
+        creat_result = client.create_registry(registry_remote_name, registry_remote_ip, registry_ip)
+        print(creat_result)
+
+    # 创建crontab 和 event 复制策略
+    for sub_replication in remote_registries:
+        registry_remote_name = sub_replication[0]
+        registry_remote_ip = sub_replication[1]
+        registry_ip = sub_replication[2]
+        creat_result = client.create_replications(registry_remote_name, registry_remote_ip, registry_ip)
+        print(creat_result)
+
+    # 创建公共项目
+    project_public = ["calico", "dashboard", "google_containers", "public", "traefik"]
+    for sub_project_public in project_public:
+        creat_result = client.create_project_public(sub_project_public)
+        print(creat_result)
+
+    # 创建应用项目和绑定members
+    user_name = {{app_project}}
+    user_pass = []
+    project_name = []
+
+    remote_registries_local = [registry_local_ip_a, registry_local_ip_b]
+
+    for index in range(len(user_name)):
+        random_num = random.randint(1000, 9999)
+        sub_password = "{}Fab@{}.com".format(user_name[index], random_num)
+        user_pass.append(sub_password)
+        sub_project = "{}".format(user_name[index])
+        project_name.append(sub_project)
+
+        username = user_name[index]
+        password = sub_password
+        project = sub_project
+
+        for sub_remote_ip in remote_registries_local:
+            # 创建应用账户user
+            user_create_result = client.create_users(username, password, sub_remote_ip)
+            print(user_create_result)
+
+            # 创建私有项目
+            project_create_result = client.create_project_private(project, sub_remote_ip)
+            print(project_create_result)
+
+            time.sleep(2)
+            # 私有项目和user绑定
+            link_result = client.link_user_to_project(username, project, sub_remote_ip)
+            print(link_result)
+
+        # 镜像推送
+        push_result = client.push_busybox(project)
+        print(push_result)
+
+    print(user_name)
+    print(user_pass)
+    print(project_name)

@@ -1,0 +1,10 @@
+version: '3'
+services:
+  zookeeper-ui:
+    image: '{{ image_repository }}/public/deemopen-zkui:1.0'
+    environment:
+      - ZK_SERVER={{ ZK_SERVER }}
+    container_name: zookeeper-ui
+    restart: always
+    ports:
+      - "9090:9090"

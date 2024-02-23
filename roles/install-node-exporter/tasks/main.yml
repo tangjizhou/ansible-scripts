@@ -1,0 +1,54 @@
+- name: esure node exporter dir exists
+  file:
+    path: '{{ node_exporter_root_dir }}'
+    state: directory
+
+- name: esure node exporter logs dir exists
+  file:
+    path: '{{ node_exporter_root_dir }}/logs'
+    state: directory
+
+- name: esure node exporter script dir exists
+  file:
+    path: '{{ node_exporter_root_dir }}/scripts'
+    state: directory
+
+- name: copy node exporter host package
+  copy:
+    src: '/etc/ansible/tools/node_exporter'
+    dest: '{{ node_exporter_root_dir }}/'
+    mode: 0755
+
+- name: remove ntp_check.sh if exists
+  file:
+    path: '{{ node_exporter_root_dir }}/scripts/ntp_check.sh'
+    state: absent
+
+- name: remove cron job if job ntp exists
+  cron:
+    name: 'ntp check cron job'
+    job: "/bin/bash {{ node_exporter_root_dir }}/scripts/ntp_check.sh"
+    state: absent
+
+- name: copy check shell to remote
+  template:
+    src: 'chrony_check.sh.j2'
+    dest: '{{ node_exporter_root_dir }}/scripts/chrony_check.sh'
+
+- name: add cron job
+  cron:
+    name: 'chrony check cron job'
+    job: "/bin/bash {{ node_exporter_root_dir }}/scripts/chrony_check.sh"
+    #minute: *
+
+- name: copy node exporter unit service
+  template:
+    src: node-exporter.service.j2
+    dest: /usr/lib/systemd/system/node-exporter.service
+
+- name: start node exporter unit service
+  systemd:
+    name: node-exporter
+    daemon_reload: yes
+    enabled: yes
+    state: restarted

@@ -1,0 +1,32 @@
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: monitor-redis
+  namespace: monitoring
+subsets:
+  - addresses:
+{% for host in groups['redis'] %}
+      - ip: '{{ host }}'
+        nodeName: '{{ hostvars[host].host_name }}'
+{% endfor %}
+    ports:
+      - port: 6379
+        protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: monitor-redis
+  namespace: monitoring
+  annotations:
+    prometheus.io/tcp-probe: "true"
+    prometheus.io/tcp-probe-port: "6379"
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9121"
+    prometheus.io/scheme: "http"
+spec:
+  ports:
+  - port: 6379
+    protocol: TCP
+    targetPort: 6379

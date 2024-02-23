@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: default-limit-range
+spec:
+  limits:
+    - type: Container
+      default:
+        memory: 4Gi #默认内存上限
+        cpu: "1"  #默认cpu上限
+      defaultRequest:
+        memory: 100Mi #默认申请内存
+        cpu: "0.02"  #默认申请cpu
+      max:
+        memory: 64Gi #最大内存
+        cpu: "32" #最大cpu
+      min:
+        memory: 10Mi #最小内存
+        cpu: "0.001" #最小cpu
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: default-resource-quota
+spec:
+  hard:
+    pods: "2000"
+    services: "2000"

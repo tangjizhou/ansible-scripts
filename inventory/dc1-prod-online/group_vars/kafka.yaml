@@ -1,0 +1,8 @@
+kafka_root_dir: '/data01/kafka'
+kafka_heap_opts: '-Xmx32G -Xms32G'
+# "ip01:9092,ip02:9092,ip03:9092"
+kafka_hosts_str: '{{ groups["kafka"] | map("regex_replace", "^(.*)$","\1:9092") | list | join(",") }}'
+
+# nginx需要引用，不能修改为ansible_play_hosts_all
+# ["ip01:9092","ip02:9092","ip03:9092"]
+kafka_hosts_arr: '{{ groups["kafka"] | map("regex_replace", "^(.*)$","\1:9092") | list | to_json }}'

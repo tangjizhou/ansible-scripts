@@ -1,0 +1,18 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    prometheus: k8s
+    role: alert-rules
+  name: watchdog-rules
+  namespace: monitoring
+spec:
+  groups:
+    - name: watchdog-rules
+      rules:
+        - alert: WatchDog
+          expr: vector(1)
+          labels:
+            severity: info
+          annotations:
+            description: "普罗米修斯监控邮件发送系统自检邮件，无需处理"

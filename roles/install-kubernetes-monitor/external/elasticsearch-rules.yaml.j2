@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    prometheus: k8s
+    role: alert-rules
+  name: elasticsearch-rules
+  namespace: monitoring
+spec:
+  groups:
+    - name: elasticsearch
+      rules:
+        - alert: ElasticsearchFreeShardsLow
+          expr:  sum(elasticsearch_cluster_health_active_shards)/ count(elasticsearch_cluster_health_active_shards) / sum( elasticsearch_clustersettings_stats_max_shards_per_node) * 100 > 80
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            description: "ES 已经使用的分片数大于 80%. VALUE = {{ $value }}"

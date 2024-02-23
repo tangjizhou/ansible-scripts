@@ -1,0 +1,33 @@
+- name: create exporter root dir
+  file:
+    path: '{{ zk_root_dir }}/zk-exporter'
+    state: directory
+    mode: 0777
+
+- name: check if zk exists
+  stat:
+    path: '{{ zk_root_dir }}/zk-exporter/docker-compose.yml'
+  register: zk_compose_file
+
+- name: stop existed zk-exporter container
+  shell: docker compose down
+  when: zk_compose_file.stat.exists == true
+  args:
+    chdir: "{{ zk_root_dir }}/zk-exporter"
+
+- name: install zk-exporter with docker compose
+  template: 
+    src: docker-compose.yml.j2
+    dest: "{{ zk_root_dir }}/zk-exporter/docker-compose.yml"
+
+- name: shutdown zk-exporter
+  command: docker compose -f {{ zk_root_dir }}/zk-exporter/docker-compose.yml down
+
+- name: start up zk-exporter
+  command: docker compose -f {{ zk_root_dir }}/zk-exporter/docker-compose.yml up -d
+
+- name: wait zk-exporter ready
+  wait_for:
+    port: 9141
+    timeout: 180
+    msg: 'Timeout waiting for zk-exporter respond'

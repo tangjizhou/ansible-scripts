@@ -1,0 +1,13 @@
+#!/bin/bash
+
+work_dir={{ harbor_root_dir }}/images
+cd ${work_dir} &&  ls ${work_dir} | xargs -L 1 -I {} docker load -i {}
+
+docker login {{ image_repository }} -u "{{ admin_harbor_account }}" -p "{{ admin_harbor_password }}"
+
+docker images | grep "10.12.128.134:80" | awk '$2!="TAG"{print $1,$2}' | while read _name _version
+do
+	docker tag ${_name}:${_version} {{ image_repository }}/${_name#*/}:${_version}
+	docker push {{ image_repository }}/${_name#*/}:${_version}
+	docker rmi ${_name}:${_version}
+done

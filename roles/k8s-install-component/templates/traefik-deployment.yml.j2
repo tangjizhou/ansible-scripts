@@ -1,0 +1,169 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: traefik-ingress-controller
+  namespace: traefik
+
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: TLSOption
+metadata:
+  name: default
+  namespace: traefik
+spec:
+  minVersion: VersionTLS12
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: TLSStore
+metadata:
+  name: default
+  namespace: traefik
+spec:  
+  defaultCertificate:
+    secretName: cim-tls
+---
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: traefik
+  namespace: traefik
+  labels:
+    app: traefik
+spec:
+  selector:
+    matchLabels:
+      app: traefik
+  template:
+    metadata:
+      labels:
+        app: traefik
+    spec:
+      serviceAccountName: traefik-ingress-controller
+      initContainers:
+        - name: wait-api
+          image: "{{ image_repository }}/public/busybox:1.34"
+          command: [ 'sh', '-c', 'until [ $KUBERNETES_SERVICE_HOST ] && [ $KUBERNETES_SERVICE_PORT ] && test -d /var/run/secrets/kubernetes.io/serviceaccount; do echo "Waiting for precondition availability";sleep 1;done;' ]
+      containers:
+        - name: traefik
+          image: "{{ image_repository }}/traefik/traefik:v2.7"
+          args:
+            - --log.level=DEBUG
+            - --accesslog
+            - --api
+            - --api.insecure
+            - --entrypoints.web.address=:80
+            - --entrypoints.websecure.address=:443
+            - --entrypoints.tcpep.address=:8000
+            - --entrypoints.grpc.address=:9090
+            - --entrypoints.udpep.address=:9000/udp
+            - --providers.kubernetescrd
+            - --metrics.prometheus=true
+            - --metrics.prometheus.buckets=0.100000, 0.300000, 1.200000, 5.000000
+            - --metrics.prometheus.addEntryPointsLabels=true
+            - --entryPoints.metrics.address=:8082
+            - --metrics.prometheus.entryPoint=metrics
+            - --metrics.prometheus.addServicesLabels=true
+            - --entryPoints.web.forwardedHeaders.insecure
+            - --entryPoints.websecure.forwardedHeaders.insecure
+            - --entryPoints.websecure.proxyProtocol.insecure=true
+            - --serversTransport.maxIdleConnsPerHost=-1
+          ports:
+            - name: web
+              containerPort: 80
+            - name: websecure
+              containerPort: 443
+            - name: admin
+              containerPort: 8080
+            - name: tcpep
+              containerPort: 8000
+            - name: udpep
+              containerPort: 9000
+            - name: grpc
+              containerPort: 9090
+          resources:
+            requests:
+              cpu: '1'
+              memory: '300Mi'
+          startupProbe:
+            httpGet:
+              port: 8080
+              path: /dashboard
+            initialDelaySeconds: 10
+            successThreshold: 1
+            periodSeconds: 3
+          readinessProbe:
+            httpGet:
+              port: 8080
+              path: /dashboard
+            successThreshold: 1
+            periodSeconds: 3
+          livenessProbe:
+            httpGet:
+              port: 8080
+              path: /dashboard
+            successThreshold: 1
+            periodSeconds: 3
+      tolerations:
+        - key: node.kubernetes.io/not-ready
+          operator: Exists
+          effect: NoExecute
+          tolerationSeconds: 2
+        - key: node.kubernetes.io/unreachable
+          operator: Exists
+          effect: NoExecute
+          tolerationSeconds: 2
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: traefik
+  namespace: traefik
+  annotations:
+    prometheus.io/http-probe: "true"
+    prometheus.io/http-probe-port: "8080"
+    prometheus.io/http-probe-path: "/dashboard"
+    prometheus.io/scrape: "true"
+    prometheus.io/port: '8082'
+    prometheus.io/scheme: "http"
+    prometheus.io/path: '/metrics'
+spec:
+  selector:
+    app: traefik
+  ports:
+    - protocol: TCP
+      port: 8080
+      name: admin
+      targetPort: 8080
+      nodePort: 31000
+    - protocol: TCP
+      port: 80
+      name: web
+      targetPort: 80
+      nodePort: 31001
+    - protocol: TCP
+      port: 8000
+      name: tcpep
+      targetPort: 8000
+      nodePort: 31002
+    - protocol: UDP
+      port: 9000
+      name: udpep
+      targetPort: 9000
+      nodePort: 31003
+    - protocol: TCP
+      port: 8082
+      name: prometheus
+      targetPort: 8082
+      nodePort: 31004
+    - protocol: TCP
+      port: 443
+      name: websecure
+      targetPort: 443
+      nodePort: 31005
+    - protocol: TCP
+      port: 9090
+      name: grpc
+      targetPort: 9090
+      nodePort: 31006
+  externalTrafficPolicy: Local
+  type: NodePort

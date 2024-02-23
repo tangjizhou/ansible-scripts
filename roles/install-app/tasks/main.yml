@@ -1,0 +1,23 @@
+- name: delete app manifest dir
+  file:
+    path: "{{ component_manifest_dir }}/app"
+    state: absent
+
+- name: create app manifest dir
+  file:
+    path: "{{ component_manifest_dir }}/app"
+    state: directory
+
+- name: copy app manifest template
+  template:
+    src: '{{ item.src }}'
+    dest: "{{ component_manifest_dir }}/app/{{ item.path | basename | regex_replace('\\.j2$', '') }}"
+  with_filetree: "templates/online"
+  when: item.state == 'file' and (item.path | dirname == '' or item.path | dirname == app_env) and host_env == 'online'
+
+- name: copy app manifest template
+  template:
+    src: '{{ item.src }}'
+    dest: "{{ component_manifest_dir }}/app/{{ item.path | basename | regex_replace('\\.j2$', '') }}"
+  with_filetree: "templates/offline"
+  when: item.state == 'file' and (item.path | dirname == '' or item.path | dirname == app_env) and host_env == 'offline'

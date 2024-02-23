@@ -1,0 +1,9 @@
+- name: eap hostname
+  gather_facts: true
+  hosts: eap_server
+  tasks:
+    - name: eap host
+      lineinfile:
+        path: /etc/hosts
+        line: "{{ansible_default_ipv4.address}} {{ansible_fqdn}}"
+        state: present

@@ -1,0 +1,9 @@
+#ntp_server: '10.10.250.11'
+#NTP地址
+ntp_servers: '10.10.250.11,10.10.251.11'
+#DNS地址
+nameservers: '10.21.1.210'
+#nameservers: '10.21.6.12,10.21.6.13'
+
+#syslog server -- k8s vip
+logstash_server: '10.21.1.20'

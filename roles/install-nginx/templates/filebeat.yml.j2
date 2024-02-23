@@ -1,0 +1,24 @@
+filebeat.inputs:
+  - type: log
+    paths:
+      - "{{nginx_root_dir}}/log/*.log"
+    multiline.pattern: '^\d{4}[-/]\d{1,2}[-/]\d{1,2}'
+    multiline.negate: true
+    multiline.match: after
+    processors:
+      - add_fields:
+          target: ''
+          fields:
+            kubernetes.labels.app: nginx
+            kubernetes.namespace: nginx
+output.kafka:
+  hosts: {{kafka_hosts_arr}}
+  topic: log-nginx
+  required_acks: -1
+  worker: 8
+logging.to_files: true
+logging.files:
+  path: /data01/filebeat/logs
+  name: filebeat
+  keepfiles: 7
+  permissions: 0640

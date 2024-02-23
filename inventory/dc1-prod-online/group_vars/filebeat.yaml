@@ -1,0 +1,4 @@
+filebeat_root_dir: "/data01/filebeat"
+# filebeat配置文件默认value，能被其他中间的参数覆盖
+kafka_hosts_arr: '{{ groups["kafka_elk"] | map("regex_replace", "^(.*)$","\1:9092") | list | to_json }}'
+filebeat_config: "filebeat.yml.j2"

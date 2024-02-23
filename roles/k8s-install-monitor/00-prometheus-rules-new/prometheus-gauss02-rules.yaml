@@ -1,0 +1,202 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    prometheus: k8s
+    role: alert-rules
+  name: prometheus-gauss02-rules
+  namespace: monitoring
+spec:
+  groups:
+    - name: prometheus-gauss02-rules
+      rules:
+        - alert: gauss_cpu_user告警
+          expr: gauss_cpu_user < 0
+          for: 1s
+          labels:
+            severity: warning
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.description }}"
+        - alert: gauss_cpu_system告警
+          expr: gauss_cpu_system < 0
+          for: 1s
+          labels:
+            severity: warning
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.description }}"
+        - alert: gauss_iowait告警
+          expr: gauss_iowait < 0
+          for: 1s
+          labels:
+            severity: warning
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.description }}"
+        - alert: gauss_session_num告警
+          expr: gauss_session_num < 0
+          for: 1s
+          labels:
+            severity: warning
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.description }}"
+        - alert: gauss_commit_num告警
+          expr: gauss_commit_num < 0
+          for: 1s
+          labels:
+            severity: warning
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.description }}"
+        - alert: gauss_transaction_num告警
+          expr: gauss_transaction_num < 0
+          for: 1s
+          labels:
+            severity: warning
+            msg_rate: send_24h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.description }}"
+        - alert: gauss_execute_num告警
+          expr: gauss_execute_num < 0
+          for: 1s
+          labels:
+            severity: warning
+            msg_rate: send_24h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.description }}"
+        - alert: gauss_hardparse_num告警
+          expr: gauss_hardparse_num < 0
+          for: 1s
+          labels:
+            severity: warning
+            msg_rate: send_24h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.description }}"
+        - alert: gauss_physical_read_num告警
+          expr: gauss_physical_read_num < 0
+          for: 1s
+          labels:
+            severity: warning
+            msg_rate: send_24h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.description }}"
+        - alert: gauss_lock_num告警
+          expr: gauss_lock_num < 0
+          for: 1s
+          labels:
+            severity: warning
+            msg_rate: send_24h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.description }}"

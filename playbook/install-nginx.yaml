@@ -1,0 +1,30 @@
+- name: 服务器初始化
+  ignore_errors: true
+  gather_facts: false
+  hosts: nginx
+  roles:
+    - disable-firewalld
+    - change-hostname
+    - change-sysconf
+    - install-dns-client
+    - install-apt-source
+    - install-ntp-client
+
+- name: 安装nginx
+  ignore_errors: false
+  gather_facts: true
+  hosts: nginx
+  vars_files:
+    - "{{inventory_dir}}/group_vars/kafka_elk.yaml"
+  roles:
+    - {role: install-docker,tags: docker}
+    - {role: install-keepalived,tags: keepalived}
+    - {role: install-nginx,tags: nginx}
+    - install-filebeat
+
+- name: 安装node-exporter
+  gather_facts: false
+  ignore_errors: false
+  hosts: nginx
+  roles:
+    - install-node-exporter

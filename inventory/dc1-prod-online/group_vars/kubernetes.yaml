@@ -1,0 +1,45 @@
+k8s_keepalived_vip: '10.21.1.20'
+nginx_keepalived_vip: '10.21.0.116'
+
+containerd_bin_dir: '/usr/local'
+cni_plugin_dir: '/opt/cni/bin'
+component_manifest_dir: '/data01/kube-manifest'
+etcd_backup_root_dir: '/data01/etcd-backup'
+pod_network_cidr: '10.244.0.0/16'
+kubelet_data_dir: '/data01/kubelet'
+
+# init
+control_plane_endpoint: '{{ k8s_keepalived_vip }}:6443'
+kubeadm_advertiseAddress: '{{ groups["k8s_master_init"][0] }}'
+# overide keepalived args
+keepalived_vip: "{{ k8s_keepalived_vip }}"
+health_check_local_script: 'apiserver_healthcheck.sh'
+
+# elk配置
+elk_logstash_num: 16
+gauss_logstash_num: 8
+es_index_keep: 1
+es_index_keep_unit: 'month'
+elk_manifest_root_dir: '{{ component_manifest_dir }}/elk'
+# syslog工作目录
+syslog_manifest_dir: '{{ elk_manifest_root_dir }}'
+
+#prometheus监控相关变量
+nfs_root_dir: '/ONLINE-PROMETHEUS'
+nfs_server: '10.21.1.200'
+monitor_nfs_path: '{{ nfs_root_dir }}'
+monitor_manifest_root_dir: '{{ component_manifest_dir }}/monitoring'
+prometheus_storage: '200Gi'
+prometheus_data_retention: '35d'
+grafana_storage: '200Mi'
+
+#alertmanager告警邮箱设置 -- fixme 告警相关配置需要安装后修改，当前配置未知
+alertmanager_storage: '200Mi'
+alertmanager_data_retention: '120h'
+alertmanager_smtp_host: "10.13.8.42"
+alertmanager_smtp_port: '25'
+alertmanager_smtp_server: '{{ alertmanager_smtp_host }}:{{ alertmanager_smtp_port }}'
+alertmanager_smtp_from: "alertmanager@infra.com"
+alertmanager_smtp_username: "alertmanager"
+alertmanager_smtp_password: "password"
+alertmanager_app_email_to: "nongfu@infra.com"

@@ -1,0 +1,12 @@
+- name: create root dir
+  file:
+    path: '{{ component_manifest_dir }}/rocketmq'
+    state: directory
+
+- name: send rocketmq yaml
+  template:
+    src: rocketmq-console.yaml.j2
+    dest: '{{ component_manifest_dir }}/rocketmq/rocketmq-console.yaml'
+
+- name: apply rocketmq yaml
+  shell: 'kubectl apply -f {{ component_manifest_dir }}/rocketmq/rocketmq-console.yaml'

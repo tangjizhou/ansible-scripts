@@ -1,0 +1,21 @@
+- name: gaussdb服务器初始化
+  ignore_errors: true
+  gather_facts: false
+  hosts: gaussdb
+  roles:
+#    - disable-firewalld
+#    - change-hostname
+#    - change-sysconf
+#    - install-dns-client
+    - install-apt-source
+    - install-ntp-client
+#
+#
+- name: 安装node-exporter
+  gather_facts: false
+  ignore_errors: false
+  vars_files:
+    - "{{inventory_dir}}/group_vars/node_exporter.yaml"
+  hosts: gaussdb
+  roles:
+    - install-node-exporter

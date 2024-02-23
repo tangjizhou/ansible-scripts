@@ -1,0 +1,72 @@
+apiVersion: monitoring.coreos.com/v1
+kind: Alertmanager
+metadata:
+  labels:
+    app.kubernetes.io/component: alert-router
+    app.kubernetes.io/instance: main
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/part-of: kube-prometheus
+    app.kubernetes.io/version: 0.25.0
+  name: main
+  namespace: monitoring
+spec:
+  storage:
+    volumeClaimTemplate:
+      spec:
+        storageClassName: nfs-storage
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: '{{ alertmanager_storage }}'
+  image: {{ image_repository }}/public/alertmanager:v0.25.0
+  externalUrl: "http://{{ alertmanager_domain }}"
+  retention: '{{ alertmanager_data_retention }}'
+  logLevel: debug
+  nodeSelector:
+    kubernetes.io/os: linux
+    node-role.kubernetes.io/master: ""
+  podMetadata:
+    labels:
+      app.kubernetes.io/component: alert-router
+      app.kubernetes.io/instance: main
+      app.kubernetes.io/name: alertmanager
+      app.kubernetes.io/part-of: kube-prometheus
+      app.kubernetes.io/version: 0.25.0
+  replicas: 3
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - alertmanager
+          topologyKey: kubernetes.io/hostname
+  tolerations:
+    - key: node.kubernetes.io/not-ready
+      operator: Exists
+      effect: NoExecute
+      tolerationSeconds: 2
+    - key: node.kubernetes.io/unreachable
+      operator: Exists
+      effect: NoExecute
+      tolerationSeconds: 2
+    - key: node-role.kubernetes.io/master
+      effect: NoSchedule
+    - key: node-role.kubernetes.io/control-plane
+      effect: NoSchedule
+  resources:
+    limits:
+      cpu: '2'
+      memory: 300Mi
+    requests:
+      cpu: 400m
+      memory: 100Mi
+  securityContext:
+    fsGroup: 2000
+    runAsNonRoot: true
+    runAsUser: 1000
+  serviceAccountName: alertmanager-main
+  version: 0.25.0

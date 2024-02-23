@@ -1,0 +1,46 @@
+- name: 检查filebeat目录
+  stat:
+    path: "{{ filebeat_root_dir }}"
+  register: filebeat_check_result
+
+- name: 停止filebeat.service
+  systemd:
+    name: filebeat
+    state: stopped
+  when: filebeat_check_result.stat.exists == true
+
+- name: 删除filebeat工作目录
+  file:
+    path: "{{ filebeat_root_dir }}"
+    state: absent
+  when: filebeat_check_result.stat.exists == true
+
+- name: copy filebeat package
+  unarchive:
+    src: '{{ package_dir }}/filebeat/filebeat-7.10.2-linux-x86_64.tar.gz'
+    dest: '/data01/'
+
+- name: 修改filebeat工作目录的name
+  shell: 'mv  /data01/filebeat-7.10.2-linux-x86_64   {{ filebeat_root_dir }}'
+
+- name: 发送filebeat配置文件
+  template:
+    src: "{{ filebeat_config }}"
+    dest: '{{ filebeat_root_dir }}/filebeat.yml'
+
+- name: 创建日志目录logs
+  file:
+    path: "{{ filebeat_root_dir }}/logs"
+    state: directory
+
+- name: 发送filebeat.service控制文件
+  template:
+    src: filebeat.service.j2
+    dest: '/lib/systemd/system/filebeat.service'
+
+- name: 启动filebeat进程
+  systemd:
+    name: filebeat
+    state: started
+    daemon_reload: true
+    enabled: true

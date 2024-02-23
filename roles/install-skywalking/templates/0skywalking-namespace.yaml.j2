@@ -1,0 +1,147 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ skywalking_namespace }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ skywalking_namespace }}-admin
+  namespace: {{ skywalking_namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ skywalking_namespace }}-admin-rolebinding
+  namespace: {{ skywalking_namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: admin-upgrade-only
+subjects:
+  - kind: ServiceAccount
+    name: {{ skywalking_namespace }}-admin
+    namespace: {{ skywalking_namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ skywalking_namespace }}-admin-view-namespace
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view-namespaces
+subjects:
+  - kind: ServiceAccount
+    name: {{ skywalking_namespace }}-admin
+    namespace: {{ skywalking_namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ skywalking_namespace }}-admin-view-crd-resources
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view-crd-resources
+subjects:
+  - kind: ServiceAccount
+    name: {{ skywalking_namespace }}-admin
+    namespace: {{ skywalking_namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: crd-object-admin
+  namespace: {{ skywalking_namespace }}
+rules:
+  - verbs:
+      - create
+      - delete
+      - update
+    apiGroups:
+      - '*'
+    resources:
+      - ingressroutes
+      - ingressroutetcps
+      - ingressrouteudps
+  - verbs:
+      - list
+      - get
+      - watch
+    apiGroups:
+      - '*'
+    resources:
+      - ingressroutes
+      - ingressroutetcps
+      - ingressrouteudps
+      - middlewares
+      - servicemonitors
+      - alertmanagers
+      - prometheusrules
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ skywalking_namespace }}-crd-object-admin
+  namespace: {{ skywalking_namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: crd-object-admin
+subjects:
+  - kind: ServiceAccount
+    name: {{ skywalking_namespace }}-admin
+    namespace: {{ skywalking_namespace }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: harbor
+  namespace: {{ skywalking_namespace }}
+stringData:
+  .dockerconfigjson: |
+    {
+      "auths": {
+        "{{ image_repository }}": {
+          "username": "{{ admin_harbor_account }}",
+          "password": "{{ admin_harbor_password }}",
+          "auth": "{{ admin_harbor_auth_plaintext | b64encode }}"
+        }
+      }
+    }
+type: kubernetes.io/dockerconfigjson
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: guest
+  namespace: {{ skywalking_namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: guest
+  namespace: {{ skywalking_namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: namespace-resource-guest
+subjects:
+  - kind: ServiceAccount
+    name: guest
+    namespace: {{ skywalking_namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: guest
+  namespace: {{ skywalking_namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-resource-guest
+subjects:
+  - kind: ServiceAccount
+    name: guest
+    namespace: {{ skywalking_namespace }}

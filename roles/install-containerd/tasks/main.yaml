@@ -1,0 +1,143 @@
+- name: 环境变量添加swapoff
+  lineinfile:
+    path: /etc/profile
+    state: present
+    regexp: '^swapoff'
+    line: swapoff -a
+
+- name: 命令行关闭交换分区swapoff
+  shell: swapoff -a
+
+- name: 01修改开启启动配置/etc/fstab，关闭swapoff
+  shell: sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
+
+- name: 02修改开启启动配置/etc/fstab，关闭swapoff
+  shell: sed -i '/sysvg-swap/ s/^\(.*\)$/#\1/g' /etc/fstab
+
+- name: 03修改开启启动配置/etc/fstab，关闭swapoff
+  shell: sed -i '/swap.img/ s/^\(.*\)$/#\1/g' /etc/fstab
+
+- name: Enable Profile
+  shell: /bin/bash /etc/profile
+
+- name: cp helm
+  copy:
+    src: /etc/ansible/tools/helm
+    dest: /usr/local/bin/
+    mode: 0777
+
+- name: 环境变量添加至k8s.conf
+  shell: |
+    cat <<EOF | tee /etc/modules-load.d/k8s.conf
+    overlay
+    br_netfilter
+    nf_conntrack
+    EOF
+
+- name: 使修改的环境变量生效modprobe overlay
+  shell: "modprobe overlay"
+
+- name: 查询modprobe overlay
+  shell: "lsmod | grep overlay"
+  register: overlay
+
+- name: show overlay
+  debug:
+    msg: "{{ overlay }}"
+
+- name: 使修改的环境变量生效modprobe br_netfilter
+  shell: "modprobe br_netfilter"
+
+- name: 查询modprobe br_netfilter
+  shell: "lsmod | grep br_netfilter"
+  register: br_netfilter
+
+- name: show br_netfilter
+  debug:
+    msg: "{{ br_netfilter }}"
+
+- name: 使修改的环境变量生效modprobe nf_conntrack
+  shell: "modprobe nf_conntrack"
+
+- name: 查询modprobe overlay
+  shell: "lsmod | grep nf_conntrack"
+  register: nf_conntrack
+
+- name: show nf_conntrack
+  debug:
+    msg: "{{ nf_conntrack }}"
+
+- name: 修改系统参数sysctl
+  shell: |
+    cat <<EOF | sudo tee /etc/sysctl.d/k8s.conf
+    net.bridge.bridge-nf-call-iptables  = 1
+    net.bridge.bridge-nf-call-ip6tables = 1
+    net.ipv4.ip_forward                 = 1
+    net.netfilter.nf_conntrack_tcp_be_liberal = 1
+    EOF
+
+- name: 使修改的系统参数生效
+  shell: "sysctl --system"
+
+- name: 查询修改系统参数sysctl-modify
+  shell: "sysctl net.bridge.bridge-nf-call-iptables net.bridge.bridge-nf-call-ip6tables net.ipv4.ip_forward"
+  register: sysctl_modify
+
+- name: show sysctl-modify
+  debug:
+    msg: "{{ sysctl_modify }}"
+
+
+- name: 解压containerd包到/usr/local/bin
+  unarchive:
+    src: "{{ package_dir }}/containerd/containerd-1.6.6-linux-amd64.tar.gz"
+    dest: "{{ containerd_bin_dir }}"
+    owner: root
+    mode: 0755
+
+- name: 创建cni-plugins bin目录
+  file:
+    path: "{{ cni_plugin_dir }}"
+    state: directory
+    mode: 0755
+    owner: root
+
+
+- name: 解压cni-plugins到/opt/cni/bin
+  unarchive:
+    src: "{{ package_dir }}/containerd/cni-plugins-linux-amd64-v1.1.1.tgz"
+    dest: "{{ cni_plugin_dir }}"
+    owner: root
+    mode: 0755
+
+- name: cp runc.amd64
+  copy:
+    src: "{{ package_dir }}/containerd/runc.amd64"
+    dest: /tmp/
+
+- name: 安装runc到/usr/local/sbin/runc
+  shell: install -m 755 /tmp/runc.amd64 /usr/local/sbin/runc && rm -f /tmp/runc.amd64
+
+- name: 发送配置文件containerd.service
+  template:
+    src: containerd.service.j2
+    dest: /lib/systemd/system/containerd.service
+
+- name: 创建/etc/containerd目录
+  file:
+    path: "/etc/containerd"
+    state: directory
+    mode: 0755
+    owner: root
+
+- name: 发送配置文件config.toml
+  template:
+    src: config.toml.j2
+    dest: /etc/containerd/config.toml
+
+- name: 重启containerd进程
+  systemd:
+    name: containerd
+    daemon_reload: yes
+    enabled: yes
+    state: restarted

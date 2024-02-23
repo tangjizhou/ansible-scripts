@@ -1,0 +1,4 @@
+kafka_hosts_str: '{{ groups["kafka_elk"] | map("regex_replace", "^(.*)$","\1:9092") | list | join(",") }}'
+kafka_hosts_arr: '{{ groups["kafka_elk"] | map("regex_replace", "^(.*)$","\1:9092") | list | to_json }}'
+# filebeat config
+filebeat_config: "filebeat-kafka.yml.j2"

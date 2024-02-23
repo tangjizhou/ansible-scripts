@@ -1,0 +1,133 @@
+# Sample Logstash configuration for creating a simple
+# Beats -> Logstash -> Elasticsearch pipeline.
+
+input {
+  file {
+    path => "/var/log/gaussdb/omm/alarm/*/*.log"
+    type => "alarm"
+    codec => multiline {
+      pattern => "^[0-9]{4}-[0-9]{2}-[0-9]{2}"
+      negate => true
+      what => "next"
+      charset => "UTF-8"
+      auto_flush_interval => 1
+    }
+  }
+  file {
+    path => "/var/log/gaussdb/omm/logicrep_*/alarm/*.log"
+    type => "logicrep-alarm"
+    codec => multiline {
+      pattern => "^[0-9]{4}-[0-9]{2}-[0-9]{2}"
+      negate => true
+      what => "next"
+      charset => "UTF-8"
+      auto_flush_interval => 1
+    }
+  }
+  file {
+    path => "/var/log/gaussdb/omm/cm/zenith_HA_15400_failover.log"
+    type => "failover-alarm"
+    codec => multiline {
+      pattern => "^[0-9]{4}-[0-9]{2}-[0-9]{2}"
+      negate => true
+      what => "next"
+      charset => "UTF-8"
+      auto_flush_interval => 1
+   }
+  }
+  file {
+    path => "/data01/gaussdb/data/data_dn1/trc/*.trc"
+    type => "trc"
+    codec => multiline {
+      pattern => "^\*+[0-9]{4}-[0-9]{2}-[0-9]{2}"
+      negate => true
+      what => "next"
+      charset => "UTF-8"
+      auto_flush_interval => 1
+    }
+  }
+  file {
+    path => "/var/log/gaussdb/omm/logicrep_*/run/*.rlog"
+    type => "logicrep-run"
+    codec => multiline {
+      pattern => "^\[[0-9]{4}-[0-9]{2}-[0-9]{2}"
+      negate => true
+      what => "previous"
+      charset => "UTF-8"
+      auto_flush_interval => 1
+   }
+  }
+}
+filter {
+  if [type] == "alarm" {
+    grok {
+      patterns_dir => [ "./patterns" ]
+      break_on_match => true
+      match => { "[log][file][path]" => "/var/log/gaussdb/omm/alarm/%{GREEDYDATA:ALARM_TYPE}/%{GREEDYDATA}" }
+      match => { "path" => "/var/log/gaussdb/omm/alarm/%{GREEDYDATA:ALARM_TYPE}/%{GREEDYDATA}" }
+    }
+  }
+  if [type] == "logicrep-alarm" {
+    grok {
+      patterns_dir => [ "./patterns" ]
+      break_on_match => true
+      match => { "[log][file][path]" => "/var/log/gaussdb/omm/%{GREEDYDATA:ALARM_TYPE}/alarm/%{GREEDYDATA}" }
+      match => { "path" => "/var/log/gaussdb/omm/%{GREEDYDATA:ALARM_TYPE}/alarm/%{GREEDYDATA}" }
+    }
+  }
+  if [type] == "failover-alarm" {
+    grok {
+      patterns_dir => [ "./patterns" ]
+      break_on_match => true
+      match => { "[log][file][path]" => "/var/log/gaussdb/omm/%{GREEDYDATA:ALARM_TYPE}/%{GREEDYDATA}" }
+      match => { "path" => "/var/log/gaussdb/omm/%{GREEDYDATA:ALARM_TYPE}/%{GREEDYDATA}" }
+    }
+  }
+  if [type] == "logicrep-run" {
+    grok {
+      patterns_dir => [ "./patterns" ]
+      match => { "message" => "\[%{GAUSS_TIME}\]%{GREEDYDATA}\[%{LOGLEVEL:level}\]%{GREEDYDATA}" }
+    }
+  }
+  if [type] == "logicrep-run" {
+    grok {
+      patterns_dir => [ "./patterns" ]
+      break_on_match => true
+      match => { "[log][file][path]" => "/var/log/gaussdb/omm/logicrep_%{GREEDYDATA:ALARM_TYPE}/run/%{GREEDYDATA}" }
+      match => { "path" => "/var/log/gaussdb/omm/logicrep_%{GREEDYDATA:ALARM_TYPE}/run/%{GREEDYDATA}" }
+   }
+ }
+}
+
+output {
+  if [type] == "alarm" {
+    file {
+      path => "/data01/node-exporter/gauss_logs/alarm/%{ALARM_TYPE}.log"
+      codec => line {format => "%{message}"}
+    }
+  }
+  if [type] == "logicrep-alarm" {
+    file {
+      path => "/data01/node-exporter/gauss_logs/alarm/%{ALARM_TYPE}-alarm.log"
+      codec => line {format => "%{message}"}
+    }
+  }
+  if [type] == "failover-alarm" {
+    file {
+      path => "/data01/node-exporter/gauss_logs/alarm/%{ALARM_TYPE}-zenith-failover.log"
+      codec => line {format => "%{message}"}
+    }
+  }
+  if [type] == "trc" {
+    file {
+      path => "/data01/node-exporter/gauss_logs/trc/zengine_smon.log"
+      codec => line {format => "%{message}"}
+    }
+  }
+ if [type] == "logicrep-run" and [level] == "ERROR" {
+    file {
+      path => "/data01/node-exporter/gauss_logs/logicrep/%{ALARM_TYPE}.log"
+      codec => line {format => "%{message}"}
+    }
+  }
+}

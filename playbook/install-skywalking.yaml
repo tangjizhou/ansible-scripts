@@ -1,0 +1,7 @@
+- name: 服务器初始化
+  ignore_errors: false
+  gather_facts: false
+  hosts:
+    - k8s_master_init
+  roles:
+    - install-skywalking

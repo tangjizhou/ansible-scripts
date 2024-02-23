@@ -1,0 +1,35 @@
+- name: esure node exporter dir exists
+  file:
+    path: '{{ node_exporter_root_dir }}'
+    state: directory
+
+- name: ensure node exporter dir exists
+  file:
+    path: '{{ node_exporter_root_dir }}/logs'
+    state: directory
+
+- name: esure node exporter dir exists
+  file:
+    path: '{{ node_exporter_root_dir }}/scripts'
+    state: directory
+
+- name: copy check shell to remote
+  template:
+    src: 'chrony_check.sh.j2'
+    dest: "{{ node_exporter_root_dir }}/scripts/chrony_check.sh"
+
+- name: add cron job
+  cron:
+    name: chrony check cron job
+    job: "/bin/bash {{ node_exporter_root_dir }}/scripts/chrony_check.sh"
+    minute: "*"
+
+- name: copy node-exporter-daemonset.yaml
+  template:
+    src: 'node-exporter-daemonset.yaml.j2'
+    dest: "{{ node_exporter_root_dir }}/node-exporter-daemonset.yaml"
+  when: ansible_ssh_host == groups['k8s_master_init'][0]
+
+- name: kubectl apply  node-exporter-daemonset.yaml
+  shell: "kubectl apply -f {{ node_exporter_root_dir }}/node-exporter-daemonset.yaml"
+  when: ansible_ssh_host == groups['k8s_master_init'][0]

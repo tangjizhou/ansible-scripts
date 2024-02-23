@@ -1,0 +1,10 @@
+- name: EAP-server服务器初始化
+  ignore_errors: true
+  gather_facts: true
+  hosts:
+    - eap_server
+  roles:
+    - install-dns-client
+    - install-apt-source
+    - install-ntp-client
+    - install-node-exporter

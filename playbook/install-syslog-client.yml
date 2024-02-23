@@ -1,0 +1,5 @@
+- name: install syslog client
+  hosts: all
+  gather_facts: false
+  roles:
+    - install-syslog-client

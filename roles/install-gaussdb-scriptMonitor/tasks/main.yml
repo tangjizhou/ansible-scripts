@@ -1,0 +1,83 @@
+# 执行账户是omm，需要修改监控读取目录的权限
+- name: change directory permission
+  file:
+    path: /data01/node-exporter
+    state: directory
+    owner: root
+    group: root
+    mode: 0777
+    recurse: yes
+
+
+#部署数据库实例状态监控
+- name: copy gs_om_status_check.sh to remote
+  copy:
+    src: files/gs_om_status_check.sh
+    dest: /data01/node-exporter/scripts/
+    owner: omm
+    group: dbgrp
+    mode: 0644
+
+
+- name: start gs_om_status_check.sh
+  shell: su - omm -s /bin/bash /data01/node-exporter/scripts/gs_om_status_check.sh
+
+- name: set cron job
+  cron:
+    name: gauss cluster status alarm
+    minute: "*/30"
+    job: "/bin/bash /data01/node-exporter/scripts/gs_om_status_check.sh"
+    user: omm
+
+
+
+#部署告警日志分析监控
+- name: copy modul_alarmid to remote
+  copy:
+    src: files/modul_alarmid.txt
+    dest: /data01/node-exporter/
+
+- name: copy alarm_total.sh to remote
+  copy:
+    src: files/alarm_total.sh
+    dest: /data01/node-exporter/scripts/
+
+- name: start alarm_total.sh
+  shell: sh alarm_total.sh
+  args:
+    chdir: /data01/node-exporter/scripts/
+
+- name: set cron job
+  cron:
+    name: gauss log alarm monitor
+    minute: "*/5"
+    job: "/bin/bash /data01/node-exporter/scripts/alarm_total.sh"
+
+
+#部署定期巡检监控
+- name: create directory check_dir
+  file:
+    path: /home/omm/check_dir
+    state: directory
+    owner: omm
+    group: dbgrp
+    mode: 0777
+    recurse: yes
+
+- name: copy omm_gs_check.sh
+  copy:
+    src: files/omm_gs_check.sh
+    dest: /data01/node-exporter/scripts/omm_gs_check.sh
+    owner: omm
+    group: dbgrp
+    mode: 0644
+
+- name: start omm_gs_check.sh
+  shell: su - omm -s /bin/bash /data01/node-exporter/scripts/omm_gs_check.sh
+
+- name: set cron job
+  cron:
+    name: gs check start
+    minute: "*/30"
+    job: "/bin/bash /data01/node-exporter/scripts/omm_gs_check.sh"
+    user: omm

@@ -1,0 +1,5 @@
+- name: install gpu v100 containerd
+  gather_facts: false
+  hosts: gpu-containerd
+  roles:
+    - install-gpu-containerd

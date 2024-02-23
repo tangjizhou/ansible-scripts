@@ -1,0 +1,100 @@
+- name: 设置时区
+  shell: "timedatectl set-timezone Asia/Shanghai"
+
+- name: date
+  shell: date
+  register: date_value
+
+- name: show date
+  debug:
+    msg: "{{ date_value.stdout }}"
+
+#安装过程中出现dpkg锁定而不能使用apt安装
+#- name: 清楚异常apt-get
+#  file:
+#    path:
+#    - /var/lib/dpkg/lock-frontend
+#    - /var/lib/dpkg/lock
+#    state: absent
+
+- name: 安装ntp和ntpdate
+  apt:
+    name:
+    - ntp
+    - ntpdate
+    state: present
+    update_cache: yes
+
+- name: 发送ntp配置文件ntp.conf
+  template:
+    src: ntp.conf.j2
+    dest: "/etc/ntp.conf"
+
+- name: /etc/default/ntp add hwclock
+  template:
+    src: ntp.j2
+    dest: /etc/default/ntp
+
+- name: 停止ntpd进程
+  systemd:
+    name: ntp
+    state: stopped
+
+##时钟同步失败，不能解决
+- name: ntpdate同步时间源
+  shell: "ntpdate  {{ ntp_servers.split(',')[0] }}"
+
+#- name: service ntp start & enable
+#  systemd:
+#    name: ntp
+#    state: restarted
+#    enabled: yes
+
+- name: 发送配置文件rc-local.service
+  template:
+    src: rc-local.service.j2
+    dest: /lib/systemd/system/rc-local.service
+
+- name: 查看开机启动文件
+  stat:
+    path: /etc/rc.local
+  register: rc_local
+
+- name: create /etc/rc.local
+  file:
+    path: /etc/rc.local
+    state: touch
+    owner: root
+    group: root
+    mode: 0744
+  when: rc_local.stat.exists == false
+
+- name: 新创建的rc.local，第一行写入#!/bin/bash
+  shell: echo "#!/bin/bash" >> /etc/rc.local
+  when: rc_local.stat.exists == false
+
+- name: 删除原有的开机启动配置ntpdate
+  lineinfile:
+    regex: "^/usr/sbin/ntpdate"
+    path: /etc/rc.local
+    state: absent
+
+- name: 新添加开机启动配置ntpdate
+  lineinfile:
+    line: "/usr/bin/systemctl stop ntpd && /usr/sbin/ntpdate {{ ntp_servers.split(',')[0] }} && /usr/sbin/hwclock -w && /usr/bin/systemctl restart ntpd"
+    regexp: "^/usr/sbin/ntpdate"
+    path: /etc/rc.local
+    state: present
+    mode: 0774
+
+- name: 发送系统控制文件ntp.service
+  template:
+    src: ntp.service.j2
+    dest: /lib/systemd/system/ntp.service
+
+- name: 重启ntp进程
+  systemd:
+    name: ntp
+    daemon_reload: yes
+    enabled: yes
+    state: restarted

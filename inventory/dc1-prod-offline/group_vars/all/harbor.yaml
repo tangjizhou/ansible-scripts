@@ -1,0 +1,3 @@
+harbor_keepalived_vip: '10.21.0.100'
+harbor_port: '80'
+image_repository: '{{ harbor_keepalived_vip }}:{{ harbor_port }}'

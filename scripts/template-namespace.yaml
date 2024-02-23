@@ -1,0 +1,146 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: template-ns
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: template-ns-admin
+  namespace: template-ns
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: template-ns-admin-rolebinding
+  namespace: template-ns
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: admin-upgrade-only
+subjects:
+  - kind: ServiceAccount
+    name: template-ns-admin
+    namespace: template-ns
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: template-ns-admin-view-namespace
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view-namespaces
+subjects:
+  - kind: ServiceAccount
+    name: template-ns-admin
+    namespace: template-ns
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: template-ns-admin-view-crd-resources
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view-crd-resources
+subjects:
+  - kind: ServiceAccount
+    name: template-ns-admin
+    namespace: template-ns
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: crd-object-admin
+  namespace: template-ns
+rules:
+  - verbs:
+      - create
+      - delete
+      - update
+    apiGroups:
+      - '*'
+    resources:
+      - ingressroutes
+      - ingressroutetcps
+      - ingressrouteudps
+  - verbs:
+      - list
+      - get
+      - watch
+    apiGroups:
+      - '*'
+    resources:
+      - ingressroutes
+      - ingressroutetcps
+      - ingressrouteudps
+      - middlewares
+      - servicemonitors
+      - alertmanagers
+      - prometheusrules
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: template-ns-crd-object-admin
+  namespace: template-ns
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: crd-object-admin
+subjects:
+  - kind: ServiceAccount
+    name: template-ns-admin
+    namespace: template-ns
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: guest
+  namespace: template-ns
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: guest
+  namespace: template-ns
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: namespace-resource-guest
+subjects:
+  - kind: ServiceAccount
+    name: guest
+    namespace: template-ns
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: template-ns-guest
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-resource-guest
+subjects:
+  - kind: ServiceAccount
+    name: guest
+    namespace: template-ns
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: template-ns-quota
+  namespace: template-ns
+spec:
+  hard:
+    pods: '150'
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: template-ns-admin
+  namespace: template-ns
+  annotations:
+    kubernetes.io/service-account.name: "template-ns-admin"
+type: kubernetes.io/service-account-token

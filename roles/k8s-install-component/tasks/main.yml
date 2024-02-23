@@ -1,0 +1,17 @@
+- name: ensure directory structure exists
+  file:
+    path: '{{ component_manifest_dir }}'
+    state: directory
+
+- name: copy config templates to master
+  template:
+    src: '{{ item.src }}'
+    dest: "{{ component_manifest_dir }}/{{ item.path | regex_replace('\\.j2$', '') }}"
+  with_filetree: templates/
+  when: item.state == 'file'
+
+- name: apply config yaml - pre
+  command: kubectl apply -f {{ component_manifest_dir }}/0traefik-crd.yml
+
+- name: apply config yaml
+  command: kubectl apply -f {{ component_manifest_dir }}

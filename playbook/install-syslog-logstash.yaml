@@ -1,0 +1,7 @@
+- name: install syslog logstash
+  hosts: k8s_master_init
+  gather_facts: false
+  vars_files:
+    - "{{inventory_dir}}/group_vars/elasticsearch.yaml"
+  roles:
+    - install-syslog-logstash

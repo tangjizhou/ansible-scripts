@@ -1,0 +1,37 @@
+- name: 服务器初始化
+  ignore_errors: true
+  gather_facts: false
+  hosts: harbor
+  roles:
+    - disable-firewalld
+    - change-hostname
+    - change-sysconf
+    - install-dns-client
+    - install-apt-source
+    - install-ntp-client
+
+- name: 安装docker
+  gather_facts: false
+  ignore_errors: false
+  hosts: harbor
+  roles:
+    - { role: install-docker, tags: docker }
+
+- name: 安装harbor
+  ignore_errors: false
+  gather_facts: true
+  hosts: harbor
+  roles:
+    #双节点安装harbor则放开下面的"install-keepalived"
+    - { role: install-keepalived, tags: keepalived }
+    - { role: install-harbor, tags: harbor }
+
+- name: 本地推送镜像
+  hosts: ansible
+  gather_facts: true
+  vars_files:
+    - "{{inventory_dir}}/group_vars/harbor.yaml"
+  ignore_errors: true
+  roles:
+    - { role: install-docker, tags: docker }
+    - image-pushto-harbor

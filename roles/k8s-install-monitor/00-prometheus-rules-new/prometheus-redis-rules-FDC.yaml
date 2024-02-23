@@ -1,0 +1,222 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    prometheus: k8s
+    role: alert-rules
+  name: redis-rules
+  namespace: monitoring
+spec:
+  groups:
+    - name: prometheus-redis-rules
+      rules:
+        - alert: Redis节点宕机
+          expr: redis_up == 0
+          for: 1m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "K8S-Alarm@sienidm.com"
+            #邮件抄送人
+            mail_cc: "CIM-infra@sienidm.com"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "Redis节点{{ $labels.instance }}宕机"
+        - alert: Redis集群丢失master节点
+          expr: (count(redis_instance_info{role="master"}) or vector(0)) < 3
+          for: 1m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "K8S-Alarm@sienidm.com"
+            #邮件抄送人
+            mail_cc: "CIM-infra@sienidm.com"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "Redis集群master节点数量少于50%"
+        - alert: Redis集群增加master节点
+          expr: count(redis_instance_info{role="master"}) > 3
+          for: 1m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "K8S-Alarm@sienidm.com"
+            #邮件抄送人
+            mail_cc: "CIM-infra@sienidm.com"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "Redis集群master节点数量超过50%"
+        - alert: Redis备节点断开连接
+          expr: count without (instance, job) (redis_connected_slaves) - sum without (instance, job) (redis_connected_slaves) -1 > 1
+          for: 1m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "K8S-Alarm@sienidm.com"
+            #邮件抄送人
+            mail_cc: "CIM-infra@sienidm.com"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "Redis备节点{{ $labels.nodename }}断开连接"
+        - alert: Redis主备复制中断
+          expr: delta(redis_connected_slaves[1m]) < 0
+          for: 1m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "K8S-Alarm@sienidm.com"
+            #邮件抄送人
+            mail_cc: "CIM-infra@sienidm.com"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "Redis主备之间数据复制被中断"
+        - alert: Redis集群扑动
+          expr: changes(redis_connected_slaves[1m]) > 1
+          for: 2m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "K8S-Alarm@sienidm.com"
+            #邮件抄送人
+            mail_cc: "CIM-infra@sienidm.com"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "在redis副本连接中检测到更改，当副本节点失去与主节点的连接并重新连接时，可能会发生这种情况"
+        - alert: Redis丢失备份
+          expr: time() - redis_rdb_last_save_timestamp_seconds > 60 * 60 * 24
+          for: 30m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "K8S-Alarm@sienidm.com"
+            #邮件抄送人
+            mail_cc: "CIM-infra@sienidm.com"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "Redis集群已经超过24小时未备份"
+        - alert: Redis节点内存使用率超高(system)
+          expr: redis_memory_used_bytes / redis_total_system_memory_bytes * 100 > 90
+          for: 2m
+          labels:
+            severity: warning
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "K8S-Alarm@sienidm.com"
+            #邮件抄送人
+            mail_cc: "CIM-infra@sienidm.com"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.instance }}对系统总内存的使用率超过90%, 当前内存使用率为{{ $value }}%"
+        - alert: Redis节点内存使用率超高(configure)
+          expr: redis_memory_used_bytes / redis_memory_max_bytes * 100 > 90
+          for: 2m
+          labels:
+            severity: warning
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "K8S-Alarm@sienidm.com"
+            #邮件抄送人
+            mail_cc: "CIM-infra@sienidm.com"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.instance }}对配置的最大内存的使用率超过90%, 当前内存使用率为{{ $value }}%"
+        - alert: Redis连接数超高
+          # maxclients 50000
+          expr: redis_connected_clients > 45000
+          for: 2m
+          labels:
+            severity: warning
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "K8S-Alarm@sienidm.com"
+            #邮件抄送人
+            mail_cc: "CIM-infra@sienidm.com"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "Redis节点{{ $labels.instance }}连接数超高, VALUE = {{ $value }}"
+        - alert: Redis连接拒绝
+          expr: increase(redis_rejected_connections_total[1m]) > 0
+          for: 0m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "K8S-Alarm@sienidm.com"
+            #邮件抄送人
+            mail_cc: "CIM-infra@sienidm.com"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "某些连接Redis{{ $labels.instance }}被拒绝"

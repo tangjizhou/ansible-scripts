@@ -1,0 +1,38 @@
+- name: 服务器初始化
+  ignore_errors: false
+  gather_facts: true
+  hosts:
+    - kafka
+  roles:
+    - disable-firewalld
+    - change-hostname
+    - change-sysconf
+    - install-dns-client
+    - install-apt-source
+    - install-ntp-client
+    - install-docker
+    - install-node-exporter
+
+ ##安装kafka集群
+- name: install kafka cluster
+  hosts:
+    - kafka_elk
+    - kafka_app
+  gather_facts: true
+  ignore_errors: false
+  roles:
+    - install-kafka
+    - install-kafka-exporter
+    - install-filebeat
+
+# 安装与Kafka配套使用的zk集群
+- name: install zk cluster
+  hosts:
+    - zookeeper_elk
+    - zookeeper_app
+  gather_facts: true
+  ignore_errors: false
+  roles:
+    - install-zk
+    - install-zk-exporter
+

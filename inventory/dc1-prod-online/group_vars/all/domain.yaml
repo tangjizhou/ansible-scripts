@@ -1,0 +1,28 @@
+# 应用域名
+app_domains:
+  - "uac.cim.infra.temp"
+  - "mesgw.cim.infra.temp"
+  - "mes.cim.infra.temp"
+  - "spc.cim.infra.temp"
+  - "apc.cim.infra.temp"
+  - "eapgw.cim.infra.temp"
+  - "eap.cim.infra.temp"
+  - "rms.cim.infra.temp"
+  - "rtd.cim.infra.temp"
+  - "fwp.cim.infra.temp"
+  - "ams.cim.infra.temp"
+  - "noticeservice.cim.infra.temp"
+  - "mcs.cim.infra.temp"
+  - "sdr.cim.infra.temp"
+  - "portal.cim.infra.temp"
+  - "cimgw.cim.infra.temp"
+
+# 组件域名
+traefik_domain: 'traefik-on.cim.infra.temp'
+mqconsole_domain: 'rocketmq-console-on.cim.infra.temp'
+alertmanager_domain: 'alertmanager-on.cim.infra.temp'
+prometheus_domain: 'prometheus-on.cim.infra.temp'
+blackbox_domain: 'blackbox-on.cim.infra.temp'
+grafana_domain: 'grafana-on.cim.infra.temp'
+kibana_domain: 'kibana.cim.infra.temp'
+kafka_manager_domain: ''

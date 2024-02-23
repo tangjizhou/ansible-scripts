@@ -1,0 +1,182 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    prometheus: k8s
+    role: alert-rules
+  name: elasticsearch-rules
+  namespace: monitoring
+spec:
+  groups:
+    - name: prometheus-es-rules
+      rules:
+        - alert: ES节点堆内存使用率超高告警
+          expr: (elasticsearch_jvm_memory_used_bytes{area="heap"} / elasticsearch_jvm_memory_max_bytes{area="heap"}) * 100 > 90
+          for: 2m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "节点堆内存使用率超过85%，当前使用率为：{{ $value }}%"
+        - alert: ES节点磁盘将要写满告警
+          expr: elasticsearch_filesystem_data_available_bytes / elasticsearch_filesystem_data_size_bytes * 100 < 10
+          for: 1m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "ES磁盘剩余空间低于10%，当前剩余空间：{{ $value }}%"
+        - alert: ES节点磁盘将要写满告警
+          expr: elasticsearch_filesystem_data_available_bytes / elasticsearch_filesystem_data_size_bytes * 100 < 20
+          for: 2m
+          labels:
+            severity: warning
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "ES 磁盘剩余空间低于20%，当前剩余空间：{{ $value }}%"
+        - alert: ES集群状态RED告警
+          expr: elasticsearch_cluster_health_status{color="red"} == 1
+          for: 5m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "ES集群处于红色故障状态，请及时查看！"
+        - alert: ES集群状态Yellow告警
+          expr: elasticsearch_cluster_health_status{color="yellow"} == 1
+          for: 10m
+          labels:
+            severity: warning
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "ES集群处于黄色警告状态，请及时查看！"
+        - alert: ES集群初始化分片时间超长告警
+          expr: elasticsearch_cluster_health_initializing_shards > 0
+          for: 15m
+          labels:
+            severity: warning
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "ES集权初始化分片时间消耗超过15 min，请及时查看！  VALUE = {{ $value }}"
+        - alert: ES集群未分配分片告警
+          expr: elasticsearch_cluster_health_unassigned_shards > 0
+          for: 10m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "ES集群中存在未分配的分片，VALUE = {{ $value }}"
+        - alert: ES集群任务挂起告警
+          expr: elasticsearch_cluster_health_number_of_pending_tasks > 0
+          for: 15m
+          labels:
+            severity: warning
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "ES集群有集群级别的任务被挂起，请及时查看。  VALUE = {{ $value }}"
+        - alert: ES分片使用率告警
+          expr: sum(elasticsearch_cluster_health_active_shards)/ count(elasticsearch_cluster_health_active_shards) / sum( elasticsearch_clustersettings_stats_max_shards_per_node) * 100 > 80
+          for: 1m
+          labels:
+            severity: warning
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #alarm_owner: ""
+          annotations:
+            description: "ES集群分片数使用率已超过80%，当前使用率{{ $value }}"

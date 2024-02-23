@@ -1,0 +1,469 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    prometheus: k8s
+    role: alert-rules
+  name: host-hardware-rules
+  namespace: monitoring
+spec:
+  groups:
+    - name: host-hardware-rules
+      rules:
+        - alert: 网络流出速度告警
+          expr: rate(node_network_transmit_bytes_total[1m])/1024/1024
+          for: 1m
+          labels:
+            severity: warning
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "网络流出速度大于500MB"
+        - alert: 网络流入速度告警
+          expr: rate(node_network_receive_bytes_total[1m])/1024/1024
+          for: 1m
+          labels:
+            severity: warning
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "网络流入速度大于500MB"
+        - alert: 内存使用率告警warning
+          expr: ceil(node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes * 100) < 20 and ceil(node_memory_MemAvailable_bytes / 1024 / 1024 / 1024) < 60
+          for: 1m
+          labels:
+            severity: warning
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.instance }}内存使用率超过80%，当前剩余 {{ $value }}% 可用"
+        - alert: 内存使用率告警critical
+          expr: ceil(node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes * 100) < 10 and ceil(node_memory_MemAvailable_bytes / 1024 / 1024 / 1024) < 40
+          for: 1m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.instance }}内存使用率超过90%，当前剩余 {{ $value }}% 可用"
+        - alert: HostMemoryUnderMemoryPressure
+          expr: rate(node_vmstat_pgmajfault[1m]) > 1000
+          for: 2m
+          labels:
+            severity: warning
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "内存一级页面的平均错误数大于1000"
+        - alert: 磁盘数据空间告警warning
+          expr: ceil((node_filesystem_avail_bytes * 100) / node_filesystem_size_bytes) < 20 and ON (instance, device, mountpoint) node_filesystem_readonly == 0
+          for: 2m
+          labels:
+            severity: warning
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.mountpoint }}目录磁盘空间使用率超过80%，当前剩余 {{ $value }}% 可用"
+        - alert: 磁盘数据空间告警critical
+          expr: ceil((node_filesystem_avail_bytes * 100) / node_filesystem_size_bytes) < 15 and ON (instance, device, mountpoint) node_filesystem_readonly == 0
+          for: 2m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.mountpoint }}目录磁盘空间使用率超过85%，当前剩余 {{ $value }}% 可用"
+        - alert: 磁盘数据空间即将写满告警
+          expr: (node_filesystem_avail_bytes * 100) / node_filesystem_size_bytes < 10 and ON (instance, device, mountpoint) predict_linear(node_filesystem_avail_bytes{fstype!~""}[1h], 24 * 3600) < 0 and ON (instance, device, mountpoint) node_filesystem_readonly == 0
+          for: 2m
+          labels:
+            severity: warning
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "按照当前写入速度，磁盘数据空间将在24小时内使用率达到100%"
+        - alert: Inode超过阈值告警Warning
+          expr: (node_filesystem_files_free{mountpoint!="/boot/efi",fstype!=""} / node_filesystem_files{mountpoint!="/boot/efi",fstype!=""} * 100 < 15 and node_filesystem_readonly{mountpoint!="/boot/efi",fstype!=""} == 0)
+          for: 2m
+          labels:
+            severity: warning
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "Inode使用超过阈值，当前剩余不足15%"
+        - alert: Inode超过阈值告警Critical
+          expr: (node_filesystem_files_free{mountpoint!="/boot/efi",fstype!=""} / node_filesystem_files{mountpoint!="/boot/efi",fstype!=""} * 100 < 5 and node_filesystem_readonly{mountpoint!="/boot/efi",fstype!=""} == 0)
+          for: 2m
+          labels:
+            severity: warning
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "Inode使用超过阈值，当前剩余不足5%"
+        - alert: Inode24h内将超过阈值告警
+          expr: (node_filesystem_files_free{mountpoint!="/boot/efi",fstype!=""} / node_filesystem_files{mountpoint!="/boot/efi",fstype!=""} * 100 < 40 and predict_linear(node_filesystem_files_free{mountpoint!="/boot/efi",fstype!=""}[6h], 24*60*60) < 0 and node_filesystem_readonly{mountpoint!="/boot/efi",fstype!=""} == 0)
+          for: 2m
+          labels:
+            severity: warning
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "Inode使用过快，预计24H内耗尽"
+        - alert: CPU负载告警Warning
+          expr: 75 < ceil((node_load1 / (count without(cpu, mode) (node_cpu_seconds_total{mode="idle"}))) * 100) <= 85
+          for: 5m
+          labels:
+            severity: warning
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "主机{{ $labels.instance }}的CPU负载超过75%，当前负载为{{ $value }}%"
+        - alert: CPU负载告警Critical
+          expr: ceil((node_load1 / (count without(cpu, mode) (node_cpu_seconds_total{mode="idle"}))) * 100) > 85
+          for: 5m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "主机{{ $labels.instance }}的CPU负载超过85%，当前负载为{{ $value }}%"
+        - alert: CPU %iowait 告警warning
+          expr: 20 < sum(rate(node_cpu_seconds_total{mode="iowait"}[5m])) by (instance) / sum(rate(node_cpu_seconds_total[5m])) by (instance) *100 <= 30
+          for: 5s
+          labels:
+            severity: warning
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "CPU运行5分钟内%iowait模式占比超过阈值20%，当前占比为{{ printf \"%.2f\" $value }}%"
+        - alert: CPU %iowait 告警critical
+          expr: sum(rate(node_cpu_seconds_total{mode="iowait"}[5m])) by (instance) / sum(rate(node_cpu_seconds_total[5m])) by (instance) *100 > 30
+          for: 5s
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "CPU运行5分钟内%iowait模式占比超过阈值30%，当前占比为{{ printf \"%.2f\" $value }}%"
+        - alert: CPU超高告警
+          expr: |
+            sum(increase(container_cpu_cfs_throttled_periods_total{container!="", }[5m])) by (container, pod, namespace)
+              /
+            sum(increase(container_cpu_cfs_periods_total{}[5m])) by (container, pod, namespace)
+              > ( 25 / 100 )
+          for: 15m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "5分钟内{{ $labels.container }}有{{ $value | humanizePercentage }}的时间CPU超过limit上限"
+        - alert: Prometheus指标抓取失败告警
+          expr: up == 0
+          for: 20s
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "Prometheus监控目标{{ $labels.instance }}下线，监控指标抓取失败"
+        - alert: NTP服务异常告警
+          expr: abs(ntp_status_offset) > 50 or abs(chrony_status_offset) > 50
+          for: 10m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "NTP服务异常"
+        - alert: NTP同步异常告警
+          expr: chrony_status > 0 or ntp_status > 0
+          for: 10m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "NTP同步异常，offset value:{{ $value }}"
+        - alert: 物理服务器CPU高温告警
+          expr: node_hwmon_temp_celsius > 75
+          for: 2m
+          labels:
+            severity: warning
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.nodename }}物理服务器CPU温度超过75°，当前温度为：{{ $value }}"
+        - alert: 物理服务器高温告警
+          expr: node_hwmon_temp_crit_alarm_celsius == 1
+          for: 30s
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.nodename }}物理服务器高温告警"
+        - alert: 服务器TCP连接数超过阈值500告警
+          expr:  node_netstat_Tcp_CurrEstab > 500
+          for: 1m
+          labels:
+            severity: warning
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "服务器{{ $labels.instance }}TCP连接数超过阈值500"
+        - alert: 磁盘I/O使用率告警
+          expr: 100-(avg(irate(node_disk_io_time_seconds_total[1m])) by(instance)* 100) < 60
+          for: 1m
+          labels:
+            severity: warning
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.instance }}磁盘I/O平均使用率超过40%，I/O使用率过高"
+        - alert: HostEdacUncorrectableErrorsDetected
+          expr: node_edac_uncorrectable_errors_total > 0
+          for: 0m
+          labels:
+            severity: warning
+          annotations:
+            description: "在过去5分钟内，EDAC报告了不可纠正的内存错误"
+        - alert: HostNetworkInterfaceSaturated
+          expr: 0.8 < (rate(node_network_receive_bytes_total{device!~"^tap.*"}[1m]) + rate(node_network_transmit_bytes_total{device!~"^tap.*"}[1m])) / node_network_speed_bytes{device!~"^tap.*"} < 10000
+          for: 1m
+          labels:
+            severity: warning
+          annotations:
+            description: "主机网络接口饱和告警。{{ $labels.device }}上的网络接口{{ $labels.instance }}正在过载.  VALUE = {{ printf \"%.2f\" $value }}"
+
+

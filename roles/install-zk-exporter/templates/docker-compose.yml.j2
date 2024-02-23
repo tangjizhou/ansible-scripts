@@ -1,0 +1,10 @@
+version: '3'
+services:
+  zookeeper-exporter:
+    image: '{{ image_repository }}/public/zookeeper-exporter:1.0.2'
+    network_mode: host
+    restart: always
+    command:
+      - '-zk-hosts=localhost:2181'
+    ports:
+      - '9141:9141'

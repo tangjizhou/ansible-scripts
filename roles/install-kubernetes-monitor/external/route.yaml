@@ -1,0 +1,59 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: alertmanager
+  namespace: monitoring
+spec:
+  entryPoints:
+    - web
+  routes:
+    - kind: Rule
+      match: Host(`alertmanager{{ cluster_suffix }}{{ domain_suffix }}.{{ domain_base }}`)
+      services:
+        - name: alertmanager-main
+          port: 9093
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: prometheus
+  namespace: monitoring
+spec:
+  entryPoints:
+    - web
+  routes:
+    - kind: Rule
+      match: Host(`prometheus{{ cluster_suffix }}{{ domain_suffix }}.{{ domain_base }}`)
+      services:
+        - name: prometheus-k8s
+          port: 9090
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: blackbox
+  namespace: monitoring
+spec:
+  entryPoints:
+    - web
+  routes:
+    - kind: Rule
+      match: Host(`blackbox{{ cluster_suffix }}{{ domain_suffix }}.{{ domain_base }}`)
+      services:
+        - name: blackbox-exporter
+          port: probe
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: grafana
+  namespace: monitoring
+spec:
+  entryPoints:
+    - web
+  routes:
+    - kind: Rule
+      match: Host(`grafana{{ cluster_suffix }}{{ domain_suffix }}.{{ domain_base }}`)
+      services:
+        - name: grafana
+          port: 3000

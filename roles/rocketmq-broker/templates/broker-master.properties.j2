@@ -1,0 +1,31 @@
+brokerClusterName={{ rocket_cluster_name }}
+brokerName={{ broker_name }}
+brokerId=0
+deleteWhen=04
+fileReservedTime=168
+brokerRole=SYNC_MASTER
+flushDiskType=SYNC_FLUSH
+slaveReadEnable=true
+useReentrantLockWhenPutMessage=true
+maxTransferCountOnMessageInMemory=500
+waitTimeMillsInSendQueue=3000
+osPageCacheBusyTimeOutMills=5000
+sendMessageThreadPoolNums=16
+namesrvAddr={{ rocketmq_namesrv_str }}
+
+##Broker
+listenPort=10911
+fetchNamesrvAddrByAddressServer = false
+autoCreateTopicEnable = false
+
+#default 4M
+maxMessageSize = 2097152
+defaultTopicQueueNums = 16
+
+#brokerIP1
+brokerIP1 = {{ ansible_ssh_host }}
+brokerIP2 = {{ ansible_ssh_host }}
+
+#storePathRootDir-storePathCommitLog
+storePathRootDir = {{ rocketmq_root_dir }}/store
+storePathCommitLog = {{ rocketmq_root_dir }}/store/commitlog

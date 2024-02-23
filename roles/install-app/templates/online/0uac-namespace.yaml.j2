@@ -1,0 +1,148 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: uac
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: uac-admin
+  namespace: uac
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: uac-admin-rolebinding
+  namespace: uac
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: admin-upgrade-only
+subjects:
+  - kind: ServiceAccount
+    name: uac-admin
+    namespace: uac
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: uac-admin-view-namespace
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view-namespaces
+subjects:
+  - kind: ServiceAccount
+    name: uac-admin
+    namespace: uac
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: uac-admin-view-crd-resources
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view-crd-resources
+subjects:
+  - kind: ServiceAccount
+    name: uac-admin
+    namespace: uac
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: crd-object-admin
+  namespace: uac
+rules:
+  - verbs:
+      - create
+      - delete
+      - update
+    apiGroups:
+      - '*'
+    resources:
+      - ingressroutes
+      - ingressroutetcps
+      - ingressrouteudps
+  - verbs:
+      - list
+      - get
+      - watch
+    apiGroups:
+      - '*'
+    resources:
+      - ingressroutes
+      - ingressroutetcps
+      - ingressrouteudps
+      - middlewares
+      - servicemonitors
+      - alertmanagers
+      - prometheusrules
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: uac-crd-object-admin
+  namespace: uac
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: crd-object-admin
+subjects:
+  - kind: ServiceAccount
+    name: uac-admin
+    namespace: uac
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: harbor
+  namespace: uac
+stringData:
+  .dockerconfigjson: |
+    {
+      "auths": {
+        "{{ image_repository }}": {
+          "username": "{{ uac_harbor_account }}",
+          "password": "{{ uac_harbor_password }}",
+          "auth": "{{ uac_harbor_auth_plaintext | b64encode }}"
+        }
+      }
+    }
+type: kubernetes.io/dockerconfigjson
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: guest
+  namespace: uac
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: guest
+  namespace: uac
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: namespace-resource-guest
+subjects:
+  - kind: ServiceAccount
+    name: guest
+    namespace: uac
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: guest
+  namespace: uac
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-resource-guest
+subjects:
+  - kind: ServiceAccount
+    name: guest
+    namespace: uac

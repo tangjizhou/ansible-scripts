@@ -1,0 +1,73 @@
+user nginx;
+worker_processes  auto;
+worker_rlimit_nofile 65535;
+error_log  /var/log/nginx/error.log warn;
+pid        /var/run/nginx.pid;
+
+events {
+  use epoll;
+  worker_connections  65535;
+}
+
+http {
+  gzip on;
+  tcp_nopush on;
+  tcp_nodelay on;
+  server_tokens off;
+  include       /etc/nginx/mime.types;
+  default_type  application/octet-stream;
+
+  log_format  main  '$time_iso8601 - $remote_addr - $host - $request - $status - $request_time - $http_referer - $http_upgrade - $upstream_response_time - $upstream_status - $upstream_addr - '
+  '$body_bytes_sent - $http_user_agent - $http_x_forwarded_for';
+
+  access_log  /var/log/nginx/access.log  main;
+  proxy_next_upstream http_502 http_503 http_404 timeout error invalid_header;
+
+  proxy_connect_timeout 300ms;
+
+  sendfile        on;
+  keepalive_timeout  65;
+  client_max_body_size 1000m;
+  include /etc/nginx/conf.d/*.conf;
+
+  map $http_upgrade $connection_upgrade {
+    default upgrade;
+    '' close;
+  }
+
+
+  server {
+    listen 443 ssl;
+    proxy_connect_timeout 3s;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    server_name *.cim.pengxinxu.com;
+    ssl_certificate /etc/nginx/conf.d/sslcrt/cim.crt;
+    ssl_certificate_key  /etc/nginx/conf.d/sslcrt/cim.key;
+    ssl_ciphers TLS13-AES-256-GCM-SHA384:TLS13-CHACHA20-POLY1305-SHA256:EECDH+CHACHA20;
+    ssl_ecdh_curve X25519:P-256;
+    ssl_prefer_server_ciphers on;
+    underscores_in_headers on;
+
+    location / {
+        proxy_pass http://traefik;
+        proxy_pass_request_headers on;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+    }
+  }
+}
+
+stream {
+  upstream k8s_dashboard {
+    server {{ k8s_keepalived_vip }}:30000  max_fails=0;
+  }
+  server {
+    listen 30000;
+    proxy_connect_timeout 10ms;
+    proxy_timeout 300s;
+    proxy_pass k8s_dashboard;
+  }
+}

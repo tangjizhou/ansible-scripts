@@ -1,0 +1,150 @@
+#!/bin/bash
+##harbor 使用API接口写入同步仓库数据
+##脚本执行依赖jq，需要先安装jq
+
+harbor_ip={{ ansible_default_ipv4.address }}
+remote_harbor_ip={{ remote_ip }}
+harbor_user={{ admin_harbor_account }}
+harbor_pass={{ admin_harbor_password }}
+new_registry_endpoint_name={{ harbor_registry_endpoint_name }}
+new_replication_rule_scheduled=${new_registry_endpoint_name}-定时任务
+new_replication_rule_event=${new_registry_endpoint_name}-事件驱动
+random_num=$RANDOM
+
+encrypt_base64=`echo -n "${harbor_user}:${harbor_pass}" | base64`
+
+##创建仓库
+curl -X 'POST' \
+  'http://'${harbor_ip}'/api/v2.0/registries' \
+  -H 'accept: application/json' \
+  -H 'X-Request-Id: fd4b2a79-04ac-4d1a-8025-9a0fa9'${random_num}'0' \
+  -H 'authorization: Basic '${encrypt_base64}'' \
+  -H 'Content-Type: application/json' \
+  -H 'X-Harbor-CSRF-Token: AbUsL0pVPjK7bXWXyxDZxGlG2RnlCTsRhiPnMmshx5Kw8UplYx9wUmLiFmlKQWsza7TAYcuFOk3awEVSaXD1NA==' \
+  -d '{
+  "credential": {
+    "access_key": "'${harbor_user}'",
+    "access_secret": "'${harbor_pass}'",
+    "type": "basic"
+  },
+  "description": "'${new_registry_endpoint_name}'",
+  "insecure": false,
+  "name": "'${new_registry_endpoint_name}'",
+  "type": "harbor",
+  "url": "http://'${remote_harbor_ip}'"
+}'
+
+
+##获取仓库信息
+check_registry_info=`curl -X 'GET' \
+  'http://'${harbor_ip}'/api/v2.0/registries?page=1&page_size=10' \
+  -H 'accept: application/json' \
+  -H 'authorization: Basic '${encrypt_base64}''`
+
+##获取仓库数量
+result_length=`echo ${check_registry_info} | jq '.|length'`
+##获取下标
+index_num=`expr ${result_length} - 1`
+##获取仓库ID
+harbor_ID=`echo ${check_registry_info} | jq '.['${index_num}']' | jq '.["id"]'`
+echo ${harbor_ID}
+
+###harbor仓库编写同步规则
+##定时规则
+curl -X 'POST' \
+  'http://'${harbor_ip}'/api/v2.0/replication/policies' \
+  -H 'accept: application/json' \
+  -H 'X-Request-Id: fd4b2a79-04ac-4d1a-8025-9a0fa9'${random_num}'8' \
+  -H 'authorization: Basic '${encrypt_base64}'' \
+  -H 'Content-Type: application/json' \
+  -H 'X-Harbor-CSRF-Token: FAlJEbLkwT6L9UZs7Nv3TO51a1FwMBK7XlI5ahxSj7KlTS9bm66PXlJ6JZJtikW77IdyKV68E+cCsZsKHgO9FA==' \
+  -d '{
+  "dest_namespace_replace_count": 1,
+  "dest_registry": {
+    "id": '${harbor_ID}',
+    "name": "'${new_registry_endpoint_name}'",
+    "status": "healthy",
+    "type": "harbor",
+    "url": "http://'${remote_harbor_ip}'"
+  },
+  "enabled": true,
+  "name": "'${new_replication_rule_scheduled}'",
+  "override": true,
+  "src_registry": {
+    "id": 0,
+    "insecure": true,
+    "name": "Local",
+    "status": "healthy",
+    "type": "harbor",
+    "url": "http://core:8080"
+  },
+  "trigger": {
+    "trigger_settings": {
+      "cron": "0 0 0 * * *"
+    },
+    "type": "scheduled"
+  }
+}'
+
+
+##事件驱动配置
+curl -X 'POST' \
+  'http://'${harbor_ip}'/api/v2.0/replication/policies' \
+  -H 'accept: application/json' \
+  -H 'X-Request-Id: fd4b2a79-04ac-4d1a-8025-9a0fa9'${random_num}'5' \
+  -H 'authorization: Basic '${encrypt_base64}'' \
+  -H 'Content-Type: application/json' \
+  -H 'X-Harbor-CSRF-Token: Bx6KU6I6cygdEcYPtqWM2Oq97CjbYhR+Z9I5DpWCzF22WuwZi3A9SMSepfE39D4v6E/1UPXuFSI7MZtul9P++w==' \
+  -d '{
+  "deletion": true,
+  "dest_namespace_replace_count": 1,
+  "dest_registry": {
+    "id": '${harbor_ID}',
+    "name": "'${new_registry_endpoint_name}'",
+    "status": "healthy",
+    "type": "harbor",
+    "url": "http://'${remote_harbor_ip}'"
+  },
+  "enabled": true,
+  "name": "'${new_replication_rule_event}'",
+  "override": true,
+  "replicate_deletion": true,
+  "src_registry": {
+    "id": 0,
+    "insecure": true,
+    "name": "Local",
+    "status": "healthy",
+    "type": "harbor",
+    "url": "http://core:8080"
+  },
+  "trigger": {
+    "trigger_settings": {},
+    "type": "event_based"
+  }
+}'
+###创建项目project
+for project in calico dashboard google_containers public traefik
+do
+	random_num_project=$RANDOM
+	curl -X 'POST' \
+	  'http://'${harbor_ip}'/api/v2.0/projects' \
+	  -H 'accept: application/json' \
+	  -H 'X-Request-Id: fd4b2a79-04ac-4d1a-8025-9a0fa9'${random_num_project}'7' \
+	  -H 'X-Resource-Name-In-Location: true' \
+	  -H 'authorization: Basic '${encrypt_base64}'' \
+	  -H 'Content-Type: application/json' \
+	  -H 'X-Harbor-CSRF-Token: K/imV/nxAwhe2XsIOn9QSYyC2SgcO3NtN4gA9pd5CHeaHFnR43sROyrqi2FoFS2ITlvyBu4DnEtB2jjRYJwYlw==' \
+	  -d '{
+	  "project_name": "'${project}'",
+	  "storage_limit": 0,
+	  "metadata": {
+		"enable_content_trust": "false",
+		"enable_content_trust_cosign": "false",
+		"auto_scan": "false",
+		"severity": "none",
+		"prevent_vul": "false",
+		"public": "true",
+		"reuse_sys_cve_allowlist": "false"
+	  }
+	}'
+done

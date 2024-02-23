@@ -1,0 +1,69 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    prometheus: k8s
+    role: alert-rules
+  name: prometheus-blackbox-rules
+  namespace: monitoring
+spec:
+  groups:
+    - name: prometheus-blackbox-rules
+      rules:
+        - alert: Infra-Blackbox-tcp探测失败告警
+          expr: probe_success{job="blackbox-tcp"} == 0
+          for: 0m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.blackmsg }}"
+        - alert: Infra-Blackbox-http探测失败告警
+          expr: probe_success{job="blackbox-http",namespace!~".*-apc.*",namespace!~".*-fdc-.*",namespace!~".*-rtd-.*",namespace!~".*-sdr-.*",namespace!~".*-yes-.*"} == 0
+          for: 0m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.blackmsg }}"
+        - alert: Infra-Blackbox-http-external探测失败告警
+          expr: probe_success{job="blackbox-http-external"} == 0
+          for: 0m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.blackmsg }}"

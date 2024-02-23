@@ -1,0 +1,10 @@
+- name: install bash
+  gather_facts: false
+  hosts: all,!nas
+  tasks:
+    - name: modify /usr/bin/sh link
+      file:
+        src: /usr/bin/bash
+        dest: /usr/bin/sh
+        state: link
+        force: yes

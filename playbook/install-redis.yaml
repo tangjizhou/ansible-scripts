@@ -1,0 +1,23 @@
+- name: 服务器初始化
+  ignore_errors: true
+  gather_facts: false
+  hosts:
+    - redis
+  roles:
+    - disable-firewalld
+    - change-hostname
+    - change-sysconf
+    - install-dns-client
+    - install-apt-source
+    - install-ntp-client
+    - install-docker
+
+- name: install redis cluster
+  hosts:
+    - redis
+  gather_facts: false
+  ignore_errors: true
+  roles:
+    - install-redis
+    - install-filebeat
+    - install-node-exporter

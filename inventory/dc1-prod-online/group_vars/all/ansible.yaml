@@ -1,0 +1,11 @@
+package_dir: '/data01/package'
+ansible_ssh_user: "root"
+ansible_ssh_pass: "password"
+#ansible_become: "true"
+#ansible_become_user: "root"
+#ansible_become_pass: "password"
+#ansible_become_method: "su"
+#ansible_become_flag: "-l"
+
+#指定source.list使用ansible服务器作为源地址
+ansible_controller_ip: '10.21.0.96'

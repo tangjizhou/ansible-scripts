@@ -1,0 +1,72 @@
+- name: 环境变量添加至k8s.conf
+  shell: |
+    cat <<EOF | tee /etc/modules-load.d/k8s.conf
+    overlay
+    br_netfilter
+    EOF
+
+- name: 使修改的环境变量生效modprobe overlay
+  shell: "modprobe overlay"
+
+- name: 查询modprobe overlay
+  shell: "lsmod | grep overlay"
+  register: overlay
+
+- name: show overlay
+  debug:
+    msg: "{{ overlay }}"
+
+- name: 使修改的环境变量生效modprobe br_netfilter
+  shell: "modprobe br_netfilter"
+
+- name: 查询modprobe br_netfilter
+  shell: "lsmod | grep br_netfilter"
+  register: br_netfilter
+
+- name: show br_netfilter
+  debug:
+    msg: "{{ br_netfilter }}"
+
+- name: 修改系统参数sysctl
+  shell: |
+    cat <<EOF | sudo tee /etc/sysctl.d/k8s.conf
+    net.bridge.bridge-nf-call-iptables  = 1
+    net.bridge.bridge-nf-call-ip6tables = 1
+    net.ipv4.ip_forward                 = 1
+    EOF
+
+- name: 使修改的系统参数生效
+  shell: "sysctl --system"
+
+- name: 查询修改系统参数sysctl-modify
+  shell: "sysctl net.bridge.bridge-nf-call-iptables net.bridge.bridge-nf-call-ip6tables net.ipv4.ip_forward"
+  register: sysctl_modify
+
+- name: show sysctl-modify
+  debug:
+    msg: "{{ sysctl_modify }}"
+
+- name: 安装CRI-dockerd
+  apt:
+    name: cri-dockerd
+    state: present
+    update_cache: true
+
+- name: 修改系统控制文件/lib/systemd/system/cri-docker.service
+  template:
+    src: cri-docker.service.j2
+    dest: "/lib/systemd/system/cri-docker.service"
+
+- name: CRI-dockerd配置开机自启
+  systemd:
+    name: cri-docker.service
+    daemon_reload: yes
+    state: restarted
+    enabled: yes
+
+- name: 重启docker进程
+  systemd:
+    name: docker
+    daemon_reload: yes
+    state: restarted
+    enabled: yes

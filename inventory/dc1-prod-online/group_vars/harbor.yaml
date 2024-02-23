@@ -1,0 +1,25 @@
+harbor_root_dir: '/data01/harbor'
+harbor_data_volume: '{{ harbor_root_dir }}/harbor-data'
+
+admin_harbor_account: 'admin'
+admin_harbor_password: 'password'
+harbor_password: '{{ admin_harbor_password }}'
+admin_harbor_auth_plaintext: '{{ admin_harbor_account }}:{{ admin_harbor_password }}'
+
+#keepalived变量
+keepalived_vip: '{{ harbor_keepalived_vip }}'
+health_check_local_script: 'harbor_healthcheck.sh'
+##网口名称
+#harbor_keepalived_vrrp_instance_interface: 'enp4s1'
+
+#相对于localIP，endpoint是远端本分仓库
+registry_endp_name_a: 'harbor02'
+registry_endp_ip_a: '10.21.0.99'
+registry_local_ip_a: '10.21.0.98'
+
+registry_endp_name_b: 'harbor01'
+registry_endp_ip_b: '10.21.0.98'
+registry_local_ip_b: '10.21.0.99'
+
+###harbor创建的应用项目名称
+app_project: '["ams", "apc", "eap", "mes", "mes-gray", "notice", "skywalking", "rms", "rtd", "spc", "sdr", "uac", "adc", "fdc", "noticeservice", "dms", "report", "yms", "oee"]'

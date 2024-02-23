@@ -1,0 +1,50 @@
+- name: ensure logstash dir exist
+  file:
+    path: "{{ logstash_root_dir }}"
+    state: directory
+    mode: 0755
+
+- name: ensure logstash dir empty
+  command: "rm -rf {{ logstash_root_dir }}/*"
+
+- name: unzip logstash tar to remote and change name
+  unarchive:
+    src: "{{ package_dir }}/logstash/logstash-7.10.2-linux-x86_64.tar.gz"
+    dest: "{{ logstash_root_dir }}"
+
+- name: 移动logstash配置文件
+  shell: "mv {{ logstash_root_dir }}/logstash-7.10.2/*  {{ logstash_root_dir }}/"
+
+- name: 删除多余层级的目录
+  file:
+    path: "{{ logstash_root_dir }}/logstash-7.10.2"
+    state: absent
+
+- name: mkdir patterns to remote Logstash directory
+  file:
+    path: "{{ logstash_root_dir }}/patterns"
+    state: directory
+    mode: 0755
+
+- name: send gauss-alert.conf file to remote
+  template:
+    src: "gauss-alert.conf.j2"
+    dest: "{{ logstash_root_dir }}/config/gauss-alert.conf"
+
+- name: send grok-pattern file to remote
+  template:
+    src: "grok-pattern.j2"
+    dest: "{{ logstash_root_dir }}/patterns/grok-pattern"
+
+#启动logstash进程
+- name: send logstash.service to remote
+  template:
+    src: logstash.service.j2
+    dest: '/usr/lib/systemd/system/logstash.service'
+
+- name: start logstash process
+  systemd:
+    name: logstash
+    daemon_reload: yes
+    enabled: yes
+    state: restarted

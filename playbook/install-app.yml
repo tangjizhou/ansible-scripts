@@ -1,0 +1,5 @@
+- name: install velero
+  hosts: k8s_master_init
+  gather_facts: false  
+  roles:
+    - install-app

@@ -1,0 +1,148 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ams
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ams-admin
+  namespace: ams
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ams-admin-rolebinding
+  namespace: ams
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: admin-upgrade-only
+subjects:
+  - kind: ServiceAccount
+    name: ams-admin
+    namespace: ams
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ams-admin-view-namespace
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view-namespaces
+subjects:
+  - kind: ServiceAccount
+    name: ams-admin
+    namespace: ams
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ams-admin-view-crd-resources
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view-crd-resources
+subjects:
+  - kind: ServiceAccount
+    name: ams-admin
+    namespace: ams
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: crd-object-admin
+  namespace: ams
+rules:
+  - verbs:
+      - create
+      - delete
+      - update
+    apiGroups:
+      - '*'
+    resources:
+      - ingressroutes
+      - ingressroutetcps
+      - ingressrouteudps
+  - verbs:
+      - list
+      - get
+      - watch
+    apiGroups:
+      - '*'
+    resources:
+      - ingressroutes
+      - ingressroutetcps
+      - ingressrouteudps
+      - middlewares
+      - servicemonitors
+      - alertmanagers
+      - prometheusrules
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ams-crd-object-admin
+  namespace: ams
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: crd-object-admin
+subjects:
+  - kind: ServiceAccount
+    name: ams-admin
+    namespace: ams
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: harbor
+  namespace: ams
+stringData:
+  .dockerconfigjson: |
+    {
+      "auths": {
+        "{{ image_repository }}": {
+          "username": "{{ ams_harbor_account }}",
+          "password": "{{ ams_harbor_password }}",
+          "auth": "{{ ams_harbor_auth_plaintext | b64encode }}"
+        }
+      }
+    }
+type: kubernetes.io/dockerconfigjson
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: guest
+  namespace: ams
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: guest
+  namespace: ams
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: namespace-resource-guest
+subjects:
+  - kind: ServiceAccount
+    name: guest
+    namespace: ams
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: guest
+  namespace: ams
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-resource-guest
+subjects:
+  - kind: ServiceAccount
+    name: guest
+    namespace: ams

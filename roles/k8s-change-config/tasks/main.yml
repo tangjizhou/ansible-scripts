@@ -1,0 +1,31 @@
+- name: modify kube controller manager bind address
+  replace:
+    path: /etc/kubernetes/manifests/kube-controller-manager.yaml
+    regexp: '^(\s+-\s--bind-address)=127.0.0.1'
+    replace: '\1=0.0.0.0'
+
+- name: modify kube scheduler bind address
+  replace:
+    path: /etc/kubernetes/manifests/kube-scheduler.yaml
+    regexp: '^(\s+-\s--bind-address)=127.0.0.1'
+    replace: '\1=0.0.0.0'
+
+# 支持podprests --fixme resourcequota
+- name: add enable-admission-plugins
+  replace:
+    path: /etc/kubernetes/manifests/kube-apiserver.yaml
+    regexp: '^\s+-\s--enable-admission-plugins=.+'
+    replace: '    - --enable-admission-plugins=NodeRestriction,PodPreset,PodNodeSelector,PodTolerationRestriction,ResourceQuota'
+
+- name: add runtime config
+  lineinfile:
+    path: /etc/kubernetes/manifests/kube-apiserver.yaml
+    insertafter: '^\s+-\s--enable-admission-plugins=.+'
+    line: '    - --runtime-config=settings.k8s.io/v1alpha1=true'
+    state: present
+
+- name: wait api server restart
+  wait_for:
+    port: 6443
+    delay: 5
+    timeout: 90

@@ -1,0 +1,16 @@
+[Unit]
+Description=logstash
+
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStart={{ logstash_root_dir }}/bin/logstash -f {{ logstash_root_dir }}/config/gauss-alert.conf
+Restart=always
+WorkingDirectory=/
+Nice=19
+LimitNOFILE=16384
+TimeoutStopSec=infinity
+
+[Install]
+WantedBy=multi-user.target

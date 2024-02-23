@@ -1,0 +1,43 @@
+- name: create dirs
+  file:
+    path: "{{ gpu_containerd_dir }}"
+    state: directory
+
+- name: copy script and package to remote 
+  copy:
+    src: "{{ item.src }}"
+    dest: "{{ gpu_containerd_dir }}"
+  with_items:
+  - {src: "{{ package_dir }}/containerd/libnvidia-container1_1.9.0-1_amd64.deb"}
+  - {src: "{{ package_dir }}/containerd/libnvidia-container-tools_1.9.0-1_amd64.deb"}
+  - {src: "{{ package_dir }}/containerd/nvidia-container-toolkit_1.9.0-1_amd64.deb"}
+  - {src: "{{ package_dir }}/containerd/t4-NVIDIA-Linux-x86_64-510.108.03.run"}
+  - {src: "{{ package_dir }}/containerd/v100-NVIDIA-Linux-x86_64-510.108.03.run"}
+
+
+#需要手动执行，完成后执行nvidia-smi确保正常
+# - name: run scripts
+#   shell: bash {{ gpu_containerd_dir }}/t4-NVIDIA-Linux-x86_64-510.108.03.run
+#   when: gpu_label == "t4"
+
+#需要手动执行，完成后执行nvidia-smi确保正常
+# - name: run scripts
+#   shell: bash {{ gpu_containerd_dir }}/v100-NVIDIA-Linux-x86_64-510.108.03.run
+#   when: gpu_label == "v100"
+
+- name: install nvidia containerd deb packages
+  shell: dpkg -i libnvidia-container1_1.9.0-1_amd64.deb && dpkg -i libnvidia-container-tools_1.9.0-1_amd64.deb && dpkg -i nvidia-container-toolkit_1.9.0-1_amd64.deb
+  args:
+    chdir: "{{ gpu_containerd_dir }}"
+
+- name: 发送配置文件config.toml
+  template:
+    src: config.toml.j2
+    dest: /etc/containerd/config.toml
+
+- name: 重启containerd进程
+  systemd:
+    name: containerd
+    daemon_reload: yes
+    enabled: yes
+    state: restarted

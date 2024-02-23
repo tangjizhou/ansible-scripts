@@ -1,0 +1,5 @@
+redis_data_dir: '/data01/redis'
+redis_password: 'password'
+#16G大小的3/4
+redis_maxmemory: "{{ 48|int * 1024|int * 1024|int * 1024|int }}"
+redis_maxmemory_policy: allkeys-lru

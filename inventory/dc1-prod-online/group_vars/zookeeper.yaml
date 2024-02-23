@@ -1,0 +1,5 @@
+zk_root_dir: '/data01/zookeeper'
+ZK_SERVER_HEAP: 8192
+ZK_CLIENT_HEAP: 4096
+# host1:port1,host2:port2,host3:port3
+zk_hosts_str: '{{ groups["zookeeper"] | map("regex_replace", "^(.*)$","\1:2181") | join(",") }}'

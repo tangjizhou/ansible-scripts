@@ -1,0 +1,16 @@
+### 只有一台server的时候，可以不写prefer和trust
+{% for chrony_server in chrony_servers.split(",") %}
+{% if loop.index == 1 and loop.length == 2 %}
+server {{ chrony_server }} iburst prefer trust
+{% else %}
+server {{ chrony_server }} iburst
+{% endif %}
+{% endfor %}
+driftfile /var/lib/chrony/drift
+makestep 1.0 3
+rtcsync
+logdir /var/log/chrony
+logchange 0.1
+leapsecmode slew
+maxslewrate 1000
+smoothtime 400 0.001 leaponly

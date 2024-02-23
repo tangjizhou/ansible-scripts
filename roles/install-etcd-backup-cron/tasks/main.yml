@@ -1,0 +1,27 @@
+- name: install etcdctl
+  copy:
+    src: /etc/ansible/tools/etcdctl
+    dest: /usr/local/bin
+    mode: 0744
+
+- name: create backup dir
+  file:
+    path: '{{ etcd_backup_root_dir }}'
+    state: directory
+
+- name: install backup shell
+  template:
+    src: backup_etcd.sh.j2
+    dest: "{{ etcd_backup_root_dir }}/backup_etcd.sh"
+    mode: 0740
+
+- name: create backup dir
+  file:
+    path: '{{ etcd_backup_root_dir }}'
+    mode: 0755
+
+- name: add etcd backup cron
+  cron:
+    name: "backup etcd"
+    special_time: "daily"
+    job: "sh {{ etcd_backup_root_dir }}/backup_etcd.sh"

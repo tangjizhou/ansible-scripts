@@ -1,0 +1,74 @@
+- name: 环境变量添加swapoff
+  lineinfile:
+    path: /etc/profile
+    state: present
+    regexp: '^swapoff'
+    line: swapoff -a
+
+- name: 命令行关闭交换分区swapoff
+  shell: swapoff -a
+
+- name: 01修改开启启动配置/etc/fstab，关闭swapoff
+  shell: sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
+
+- name: 02修改开启启动配置/etc/fstab，关闭swapoff
+  shell: sed -i '/sysvg-swap/ s/^\(.*\)$/#\1/g' /etc/fstab
+
+- name: 03修改开启启动配置/etc/fstab，关闭swapoff
+  shell: sed -i '/swap.img/ s/^\(.*\)$/#\1/g' /etc/fstab
+
+- name: Enable Profile
+  shell: /bin/bash /etc/profile
+
+- name: 安装docker
+  apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+
+#harbor安装需要helm组件
+- name: cp helm
+  copy:
+    src: /etc/ansible/tools/helm
+    dest: /usr/local/bin/
+    mode: 0777
+
+- name: 创建docker数据目录
+  file:
+    path: "{{ docker_data_root }}"
+    state: directory
+    mode: 0755
+
+- name: 检查docker配置文件目录
+  stat:
+    path: /etc/docker
+  register: etc_docker
+
+- name: 创建/etc/docker
+  file:
+    path: /etc/docker
+    state: directory
+  when: etc_docker.stat.exists == false
+
+- name: 配置daemon文件
+  template:
+    src: daemon.json.j2
+    dest: /etc/docker/daemon.json
+    force: yes
+
+- name: 重启docker进程
+  systemd:
+    name: docker
+    daemon_reload: yes
+    state: restarted
+    enabled: yes
+
+- name: 创建docker定时清除任务
+  cron:
+    name: "docker clean"
+    special_time: "monthly"
+    job: "docker system prune -af"

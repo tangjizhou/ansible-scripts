@@ -1,0 +1,165 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    prometheus: k8s
+    role: alert-rules
+  name: prometheus-yes-rules
+  namespace: monitoring
+spec:
+  groups:
+    - name: prometheus-yes-rules
+      rules:
+        - alert: YES-数据库总连接超高warning
+          expr: 65 < (hikaricp_connections{namespace=~".*-yes-.*"} / hikaricp_connections_max{namespace=~".*-yes-.*"} * 100) <= 80
+          for: 1m
+          labels:
+            severity: warning
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.pod }} 当前(hikaricp_connections/hikaricp_connections_max)*100={{ $value }}%"
+        - alert: YES-数据库总连接超高critical
+          expr: (hikaricp_connections{namespace=~".*-yes-.*"} / hikaricp_connections_max{namespace=~".*-yes-.*"} * 100) > 80
+          for: 1m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.pod }} 当前(hikaricp_connections/hikaricp_connections_max)*100={{ $value }}%"
+        - alert: YES-数据库等待连接超高
+          expr: hikaricp_connections_pending{namespace=~".*-yes-.*"} > 10
+          for: 1m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.pod }} 当前等待连接数：{{ $value }}"
+        - alert: YES-数据库连接创建超时
+          expr: increase(hikaricp_connections_timeout_total{namespace=~".*-yes-.*"}[720m]) > 10
+          for: 1m
+          labels:
+            severity: warning
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.pod }} 当前创建超时的连接数：{{ $value }}"
+        - alert: YES-POD重启
+          expr: round(increase(kube_pod_container_status_restarts_total{namespace=~".*-yes.*"}[5m])) > 0
+          for: 5s
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.pod }} 发生重启"
+        - alert: YES-Blackbox-http探测失败告警
+          expr: probe_success{job="blackbox-http",namespace=~".*-yes.*"} == 0
+          for: 10s
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.pod }} 探测失败"
+        - alert: YES-容器内线程数超高告警
+          expr: container_threads{namespace=~".*-yes.*"} > 2000
+          for: 10s
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.pod }}容器内线程数超过阈值2000"
+        - alert: YES-表空间使用率告警
+          #fixme gaussDB 需要修改IP
+          expr: gauss_tablespace_used_alert{alert_db="192.168.1.1"} > 0
+          for: 10s
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.description }}"

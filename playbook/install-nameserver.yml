@@ -1,0 +1,20 @@
+- name: install internal nameserver
+  gather_facts: false
+  hosts: all,!nas
+  tasks:
+    - name: ensure DNS line exists
+      lineinfile:
+        path: /etc/systemd/resolved.conf
+        line: 'DNS={{ nameservers.split(",") | join(" ")}}'
+        state: present
+    - name: restart systemd-resolved
+      systemd:
+        name: systemd-resolved
+        daemon_reload: yes
+        state: restarted
+        enabled: yes
+    - name: creat /etc/resolv.conf link
+      file:
+        src: /run/systemd/resolve/resolv.conf
+        dest: /etc/resolv.conf
+        state: link

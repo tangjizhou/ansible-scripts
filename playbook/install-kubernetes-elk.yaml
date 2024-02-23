@@ -1,0 +1,50 @@
+- name: 服务器初始化
+  ignore_errors: true
+  gather_facts: false
+  hosts:
+    - es
+    - kafka
+  roles:
+    - disable-firewalld
+    - change-hostname
+    - change-sysconf
+    - install-dns-client
+    - install-yum-client
+    - install-ntp-client
+    - install-docker
+  post_tasks:
+    - name: 安装自动补全
+      yum:
+        name: ['bash-completion', 'rsync', 'telnet', 'vim', 'nfs-utils']
+        state: latest
+
+
+- name: 安装ES集群
+  hosts: es
+  gather_facts: true
+  ignore_errors: false
+  roles:
+    - install-elasticsearch
+
+- name: 安装Kafka集群
+  hosts: kafka
+  gather_facts: true
+  ignore_errors: false
+  roles:
+    - install-kafka
+
+- name: 安装node-exporter
+  gather_facts: false
+  ignore_errors: false
+  hosts:
+    - es
+    - kafka
+  roles:
+    - install-node-exporter
+
+- name: k8s安装elk相关组件
+  hosts: k8s-master-init
+  gather_facts: true
+  ignore_errors: false
+  roles:
+    - k8s-install-elk

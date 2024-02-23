@@ -1,0 +1,77 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: autodelete-es-index-pattern
+  namespace: elk
+  labels:
+    app: autodelete-es-index-pattern
+data:
+  autodelete-es-index-pattern.sh: |
+    #!/bin/bash
+    es_host=${ES_HOST}
+    #默认保留10个月
+    es_index_keep_unit=${ES_INDEX_KEEP_UNIT:-month}
+    es_index_keep=${ES_INDEX_KEEP:-10}
+    if [ "es_index_keep_unit" == "month" ];then
+    curl -XDELETE http://$es_host/*-$(date -d "$es_index_keep month ago" +%Y-%m)
+    elif [ "es_index_keep_unit" == "week" ];then
+    curl -XDELETE http://$es_host/*-$(date -d "$es_index_keep week ago" +%Y-%m)
+    fi
+
+---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  namespace: elk
+  name: autodelete-es-index-pattern
+  labels:
+    app: autodelete-es-index-pattern
+spec:
+  failedJobsHistoryLimit: 1
+  successfulJobsHistoryLimit: 1
+  concurrencyPolicy: Replace
+  startingDeadlineSeconds: 20
+  #每天2点执行
+  schedule: "*/10 * * * *"
+  jobTemplate:
+    metadata:
+      labels:
+        app: autodelete-es-index-pattern
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: alpine-curl-jq
+              image: "{{ image_repository }}/public/curl-jq:debian"
+              command: [ "/bin/bash", "-c", "/es/autodelete-es-index-pattern.sh" ]
+              env:
+                - name: ES_HOST
+                  value: "elasticsearch.elk:9200"
+                - name: ES_INDEX_KEEP
+                  value: "{{ es_index_keep }}"
+                - name: ES_INDEX_KEEP_UNIT
+                  value: "{{ es_index_keep_unit }}"
+                - name: TZ
+                  value: "Asia/Shanghai"
+              volumeMounts:
+                - mountPath: /es/autodelete-es-index-pattern.sh
+                  subPath: autodelete-es-index-pattern.sh
+                  name: autodelete-es-index-pattern
+                - name: timezone
+                  mountPath: /etc/localtime
+              resources:
+                requests:
+                  cpu: '20m'
+                  memory: 10Mi
+                limits:
+                  cpu: '100m'
+                  memory: 50Mi
+          volumes:
+            - name: autodelete-es-index-pattern
+              configMap:
+                name: autodelete-es-index-pattern
+                defaultMode: 0770
+            - name: timezone
+              hostPath:
+                path: /etc/localtime

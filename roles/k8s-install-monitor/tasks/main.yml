@@ -1,0 +1,81 @@
+#- name: clean old manifest
+#  shell: 'rm -rf {{ monitor_manifest_root_dir }}'
+
+- name: send config files to k8s master
+  copy:
+    src: /etc/ansible/roles/k8s-install-monitor/manifests
+    dest: '/data01/kube-manifest/'
+
+- name: mv manifests to monitoring
+  shell: "mv  manifests  monitoring"
+  args:
+    chdir: "/data01/kube-manifest/"
+
+
+- name: create prometheus rules directory
+  file:
+    path: "{{ monitor_manifest_root_dir }}/prometheus-rules"
+    state: "directory"
+
+- name: send prometheus rules to k8s master
+  copy:
+    src: /etc/ansible/roles/k8s-install-monitor/00-prometheus-rules-new/
+    dest: "{{ monitor_manifest_root_dir }}/prometheus-rules/"
+
+- name: replace SMTP_SERVER
+  replace:
+    path: "{{ monitor_manifest_root_dir }}/alertmanager-secret.yaml"
+    regexp: 'SMTP_SERVER'
+    replace: '{{ alertmanager_smtp_server }}'
+
+- name: replace SMTP_FROM
+  replace:
+    path: "{{ monitor_manifest_root_dir }}/alertmanager-secret.yaml"
+    regexp: 'SMTP_FROM'
+    replace: '{{ alertmanager_smtp_from }}'
+
+- name: replace SMTP_USERNAME
+  replace:
+    path: "{{ monitor_manifest_root_dir }}/alertmanager-secret.yaml"
+    regexp: 'SMTP_USERNAME'
+    replace: '{{ alertmanager_smtp_username }}'
+
+- name: replace SMTP_PASSWORD
+  replace:
+    path: "{{ monitor_manifest_root_dir }}/alertmanager-secret.yaml"
+    regexp: 'SMTP_PASSWORD'
+    replace: '{{ alertmanager_smtp_password }}'
+
+- name: replace APP_EMAIL_TO
+  replace:
+    path: "{{ monitor_manifest_root_dir }}/alertmanager-secret.yaml"
+    regexp: 'APP_EMAIL_TO'
+    replace: '{{ alertmanager_app_email_to }}'
+
+- name: copy template to remote
+  template:
+    src: '{{ item.src }}'
+    dest: "{{ monitor_manifest_root_dir }}/{{ item.path | regex_replace('.j2$', '') }}"
+  with_filetree: 'templates/'
+  when: item.state == 'file'
+
+- name: create external conf dir
+  file:
+    path: "{{ monitor_manifest_root_dir }}/external"
+    state: directory
+
+- name: copy template to remote
+  template:
+    src: '{{ item.src }}'
+    dest: "{{ monitor_manifest_root_dir }}/external/{{ item.path | regex_replace('.j2$', '') }}"
+  with_filetree: 'external/'
+  when: item.state == 'file'
+
+- name: apply monitoring manifests
+  shell: |
+    kubectl apply --server-side -f {{ monitor_manifest_root_dir }}/setup
+    kubectl wait --for condition=Established --all CustomResourceDefinition --namespace=monitoring
+    kubectl apply -f {{ monitor_manifest_root_dir }}/external/
+    kubectl apply -f {{ monitor_manifest_root_dir }}/
+  args:
+    chdir: "{{ monitor_manifest_root_dir }}"

@@ -1,0 +1,19 @@
+- name: 服务器初始化
+  ignore_errors: false
+  gather_facts: false
+  hosts:
+    - mail
+  roles:
+    - disable-firewalld
+    - change-hostname
+    - change-sysconf
+    - install-apt-source
+    - install-ntp-client
+    - install-docker
+- name: install mail
+  hosts:
+    - mail
+  gather_facts: false
+  ignore_errors: false
+  roles:
+    - install-mail-server

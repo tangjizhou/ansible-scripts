@@ -1,0 +1,244 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logstash-gaussdb-jvm
+  namespace: elk
+data:
+  jvm.options: |
+    ## JVM configuration
+
+    # Xms represents the initial size of total heap space
+    # Xmx represents the maximum size of total heap space
+
+    -Xms14g
+    -Xmx14g
+
+    ################################################################
+    ## Expert settings
+    ################################################################
+    ##
+    ## All settings below this section are considered
+    ## expert settings. Don't tamper with them unless
+    ## you understand what you are doing
+    ##
+    ################################################################
+
+    ## GC configuration
+    -XX:+UseConcMarkSweepGC
+    -XX:CMSInitiatingOccupancyFraction=75
+    -XX:+UseCMSInitiatingOccupancyOnly
+
+    ## Locale
+    # Set the locale language
+    #-Duser.language=en
+
+    # Set the locale country
+    #-Duser.country=US
+
+    # Set the locale variant, if any
+    #-Duser.variant=
+
+    ## basic
+
+    # set the I/O temp directory
+    #-Djava.io.tmpdir=$HOME
+
+    # set to headless, just in case
+    -Djava.awt.headless=true
+
+    # ensure UTF-8 encoding by default (e.g. filenames)
+    -Dfile.encoding=UTF-8
+
+    # use our provided JNA always versus the system one
+    #-Djna.nosys=true
+
+    # Turn on JRuby invokedynamic
+    -Djruby.compile.invokedynamic=true
+    # Force Compilation
+    -Djruby.jit.threshold=0
+    # Make sure joni regexp interruptability is enabled
+    -Djruby.regexp.interruptible=true
+
+    ## heap dumps
+
+    # generate a heap dump when an allocation from the Java heap fails
+    # heap dumps are created in the working directory of the JVM
+    -XX:+HeapDumpOnOutOfMemoryError
+
+    # specify an alternative path for heap dumps
+    # ensure the directory exists and has sufficient space
+    #-XX:HeapDumpPath=${LOGSTASH_HOME}/heapdump.hprof
+
+    ## GC logging
+    #-XX:+PrintGCDetails
+    #-XX:+PrintGCTimeStamps
+    #-XX:+PrintGCDateStamps
+    #-XX:+PrintClassHistogram
+    #-XX:+PrintTenuringDistribution
+    #-XX:+PrintGCApplicationStoppedTime
+
+    # log GC status to a file with time stamps
+    # ensure the directory exists
+    #-Xloggc:${LS_GC_LOG_FILE}
+
+    # Entropy source for randomness
+    -Djava.security.egd=file:/dev/urandom
+
+    # Copy the logging context from parent threads to children
+    -Dlog4j2.isThreadContextMapInheritable=true
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app: logstash-gaussdb-pipeline
+  name: logstash-gaussdb-pipeline
+  namespace: elk
+data:
+  filter_main.conf: |-
+    filter {
+      grok {
+        break_on_match => true
+        match => { "[log][file][path]" => "/var/log/gaussdb/omm/%{DATA:logDir}/%{GREEDYDATA}" }
+      }
+    }
+    filter {
+      grok {
+        break_on_match => true
+        patterns_dir => ["/usr/share/logstash/patterns"]
+        match => { "message" => "^%{ISO8601_TIMEZONE:timezone}%{SPACE}%{TIMESTAMP_ISO8601:timestamp}" }
+        match => { "message" => "^%{TIMESTAMP_ISO8601:timestamp}%{ISO8601_TIMEZONE:timezone} \[%{LOGLEVEL:level}\]" }
+        match => { "message" => "^%{TIMESTAMP_ISO8601:timestamp}" }
+    
+      }
+      date {
+        match => [ "timestamp", "yyyy-MM-dd HH:mm:ss.SSS", "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd HH:mm:ss:SSS",
+                  "yyyy-MM-dd HH:mm:ss,SSS", "yyyy-MM-dd HH:mm:ss'+08:00'", "yyyy-MM-dd'T'HH:mm:ss.SSS'+0800'",
+                  "yyyy-MM-dd'T'HH:mm:ss'+08:00'", "yyyy-MM-dd HH:mm:ss.SSSSS", "yyyy/MM/dd HH:mm:ss", "ISO8601"]
+        target => "@timestamp"
+      }
+      mutate { remove_field => ['timestamp'] }
+      mutate {
+        remove_field => []
+      }
+    }
+    filter {
+      mutate {
+        split => ["[log][file][path]", "omm"]
+        add_field => { "filepath" => "%{[log][file][path][1]}" }
+        remove_field => [ "[fields][kafka_topic]","[agent][name]","[agent][version]","[log][flags]","logDir", "tags", "type", "[log][file][path]",
+           "[input][type]", "[ecs][version]", "[agent][type]", "_type", "[agent][ephemeral_id]","[agent][id]", "[kubernetes][namespace]"  ]
+      }
+    }
+  input_main.conf: |-
+    input {
+      kafka {
+        id => "gaussdb"
+        client_id => "gaussdb"
+        group_id => "logstash-gaussdb"
+        bootstrap_servers => '{{ kafka_hosts_str }}'
+        topics => ["log-gaussdb"]
+        type => "log"
+        codec => json { charset => "UTF-8" }
+        consumer_threads => 8
+        auto_offset_reset => latest
+        decorate_events => false
+      }
+    }
+  output_main.conf: |-
+    output {
+      # stdout { codec => rubydebug }
+      elasticsearch {
+        hosts => {{ es_hosts_arr }}
+        manage_template => true
+        template_name => "app-log"
+        index => "log-gaussdb-%{+YYYY-MM-ww}"
+      }
+    }
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app: logstash-gaussdb-patterns
+  name: logstash-gaussdb-patterns
+  namespace: elk
+data:
+  main: |-
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: logstash-gaussdb
+  namespace: elk
+spec:
+  replicas: 8
+  template:
+    metadata:
+      labels:
+        app: logstash-gaussdb
+    spec:
+      tolerations:
+        - key: node.kubernetes.io/not-ready
+          operator: Exists
+          effect: NoExecute
+          tolerationSeconds: 2
+        - key: node.kubernetes.io/unreachable
+          operator: Exists
+          effect: NoExecute
+          tolerationSeconds: 2
+      containers:
+        - name: logstash-gaussdb
+          image: "{{ image_repository }}/public/logstash:7.10.2"
+          imagePullPolicy: Always
+          env:
+            - name: TZ
+              value: "Asia/Shanghai"
+          resources:
+            limits:
+              memory: '16Gi'
+              cpu: '8'
+            requests:
+              memory: '10Gi'
+              cpu: '1'
+          volumeMounts:
+            - name: logstash-gaussdb-pipeline
+              mountPath: /usr/share/logstash/pipeline
+            - name: logstash-gaussdb-config
+              mountPath: /usr/share/logstash/config/logstash.yml
+              subPath: logstash.yml
+            - name: logstash-gaussdb-patterns
+              mountPath: /usr/share/logstash/patterns
+            - name: timezone
+              mountPath: /etc/localtime
+            - name: jvm-options
+              mountPath: /usr/share/logstash/config/jvm.options
+              subPath: jvm.options
+          lifecycle:
+            preStop:
+              exec:
+                command: [ "sleep", "40" ]
+      terminationGracePeriodSeconds: 120
+      volumes:
+        - name: logstash-gaussdb-config
+          configMap:
+            name: logstash-config
+        - name: logstash-gaussdb-pipeline
+          configMap:
+            name: logstash-gaussdb-pipeline
+        - name: logstash-gaussdb-patterns
+          configMap:
+            name: logstash-gaussdb-patterns
+        - name: timezone
+          hostPath:
+            path: /etc/localtime
+        - name: jvm-options
+          configMap:
+            name: logstash-gaussdb-jvm
+      securityContext:
+        runAsUser: 0
+        fsGroup: 1000
+  selector:
+    matchLabels:
+      app: logstash-gaussdb

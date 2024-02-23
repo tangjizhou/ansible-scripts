@@ -1,0 +1,39 @@
+- name: ensure directory structure exists
+  file:
+    path: '{{ velero_root_dir }}'
+    state: directory
+
+- name: send velero charts tar.gz to velero_root_dir
+  unarchive:
+    src: "{{ velero_package_dir }}/velero-3.1.2.tar.gz"
+    dest: "{{ velero_root_dir }}"
+
+- name: remove velero charts values
+  shell: rm -f {{ velero_root_dir }}/values.yaml
+
+- name: 发送velero配置文件values.yaml
+  template:
+    src: values.yaml.j2
+    dest: "{{ velero_root_dir }}/values.yaml"
+
+- name: 发送工具velero
+  copy:
+    src: /etc/ansible/tools/velero
+    dest: /usr/local/bin/
+    mode: 0777
+
+#- name: chmod velero
+#  shell: chmod +x /usr/local/bin/velero
+
+- name: query velero charts 
+  command: helm list -n velero
+  register: helmresult
+
+- name: helm charts uninstall
+  command: helm uninstall velero  -n velero 
+  when: '"velero" in helmresult.stdout'
+
+- name: helm charts install
+  command: helm install velero ./ -n velero --create-namespace
+  args:
+    chdir: "{{ velero_root_dir }}"

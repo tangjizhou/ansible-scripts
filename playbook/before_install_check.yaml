@@ -1,0 +1,26 @@
+- name: 服务器初始信息检查
+  hosts: all
+  gather_facts: true
+  ignore_errors: false
+  tasks:
+    - name: hostname checking
+      debug:
+        var: ansible_hostname
+    - name: cpu checking
+      debug:
+        var: ansible_processor_vcpus
+    - name: os checking
+      debug:
+        var: ansible_lsb
+    - name: mem checking
+      debug:
+        var: ansible_memtotal_mb
+    - name: selinux checking
+      debug:
+        var: ansible_selinux
+    - name: /bin/shell checking
+      debug:
+        var: ansible_user_shell
+    - name: LVM checking
+      debug:
+        var: ansible_lvm

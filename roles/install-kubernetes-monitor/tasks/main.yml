@@ -1,0 +1,35 @@
+#- name: clean old manifest
+#  shell: 'rm -rf {{ monitor_manifest_root_dir }}'
+
+- name: send config files to k8s master
+  synchronize:
+    src: manifests/
+    dest: '{{ monitor_manifest_root_dir }}'
+
+- name: copy template to remote
+  template:
+    src: '{{ item.src }}'
+    dest: "{{ monitor_manifest_root_dir }}/{{ item.path | regex_replace('.j2$', '') }}"
+  with_filetree: 'templates/'
+  when: item.state == 'file'
+
+- name: touch external conf dir
+  file:
+    path: "{{ monitor_manifest_root_dir }}/external"
+    state: directory
+
+- name: copy template to remote
+  template:
+    src: '{{ item.src }}'
+    dest: "{{ monitor_manifest_root_dir }}/external/{{ item.path | regex_replace('.j2$', '') }}"
+  with_filetree: 'external/'
+  when: item.state == 'file'
+
+- name: apply monitoring manifests
+  shell: |
+    kubectl apply --server-side -f {{ monitor_manifest_root_dir }}/setup
+    kubectl wait --for condition=Established --all CustomResourceDefinition --namespace=monitoring
+    kubectl apply -f {{ monitor_manifest_root_dir }}/external/
+    kubectl apply -f {{ monitor_manifest_root_dir }}/
+  args:
+    chdir: "{{ monitor_manifest_root_dir }}"

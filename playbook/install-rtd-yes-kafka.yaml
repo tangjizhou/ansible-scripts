@@ -1,0 +1,25 @@
+- name: 服务器初始化
+  ignore_errors: true
+  gather_facts: true
+  hosts:
+    - kafka
+  roles:
+    - disable-firewalld
+    - change-hostname
+    - change-sysconf
+    - install-dns-client
+    - install-apt-source
+    - install-ntp-client
+    - install-docker
+    - install-node-exporter
+
+ ##安装kafka集群
+- name: install yes-kafka cluster
+  hosts:
+    - kafka_rtd
+    - kafka_yes
+  gather_facts: true
+  ignore_errors: false
+  roles:
+    - install-kafka
+    - install-kafka-exporter

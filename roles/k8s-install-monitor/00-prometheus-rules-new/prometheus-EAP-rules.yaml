@@ -1,0 +1,199 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    prometheus: k8s
+    role: alert-rules
+  name: prometheus-eap-rules
+  namespace: monitoring
+spec:
+  groups:
+    - name: prometheus-eap-rules
+      rules:
+        - alert: EAP-数据库活动连接超高warning
+          expr: 65 < (druid_active_count{namespace=~".*-eap-.*"} / druid_max_active{namespace=~".*-eap-.*"} * 100) <= 80
+          for: 1m
+          labels:
+            severity: warning
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.pod }} 当前 (druid_active_count/druid_max_active)*100={{ $value }} %；请增加应用POD数量，联系应用责任人处理"
+        - alert: EAP-数据库活动连接超高critical
+          expr: (druid_active_count{namespace=~".*-eap-.*"} / druid_max_active{namespace=~".*-eap-.*"} * 100) > 80
+          for: 1m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.pod }} 当前 (druid_active_count/druid_max_active) * 100 = {{ $value }} %；请增加应用POD数量，联系应用责任人处理"
+        - alert: EAP-数据库等待连接超高
+          expr: druid_wait_thread_count{namespace=~".*-eap-.*"} > 10
+          for: 1m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.pod }} 当前 druid_wait_thread_count = {{ $value }}；请增加应用POD数量，联系应用责任人处理 "
+        - alert: EAP-数据库执行异常
+          expr: increase(druid_error_count{namespace=~".*-eap-.*"}[1m]) > 1
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.pod }} 当前 increase(druid_error_count[1m]) = {{ $value }}；数据库执行异常，请联系应用责任人确认异常信息 "
+        - alert: EAP-POD重启
+          expr: round(increase(kube_pod_container_status_restarts_total{namespace=~".*-eap.*"}[5m])) > 0
+          for: 5s
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.pod }} 发生重启"
+        - alert: EAP-Blackbox-http探测失败告警
+          expr: probe_success{job="blackbox-http",namespace=~".*-eap.*"} == 0
+          for: 10s
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.pod }} 探测失败"
+        - alert: EAP-容器内线程数超高告警
+          expr: container_threads{namespace=~".*-eap.*"} > 2000
+          for: 10s
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.pod }}容器内线程数超过阈值2000"
+        - alert: EAP-表空间使用率告警
+          #fixme gaussDB 需要修改IP
+          expr: gauss_tablespace_used_pct{alert_db="10.13.171.158"} > 80
+          for: 10s
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.description }}"
+        - alert: EAP-JVM使用率告警Warning
+          expr: 80 < sum(jvm_memory_used_bytes{namespace=~".*-eap-.*"}) by (namespace, service, pod) / sum(jvm_memory_max_bytes{namespace=~".*-eap-.*"}) by (namespace, service, pod) *100 < 90
+          for: 10m
+          labels:
+            severity: warning
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #alarm_owner: ""
+          annotations:
+            description: "当前POD={{ $labels.pod }} JVM使用率超过80%"
+        - alert: EAP-JVM使用率告警Critical
+          expr: sum(jvm_memory_used_bytes{namespace=~".*-eap-.*"}) by (namespace, service, pod) / sum(jvm_memory_max_bytes{namespace=~".*-eap-.*"}) by (namespace, service, pod) *100 >= 90
+          for: 10m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #alarm_owner: ""
+          annotations:
+            description: "当前POD={{ $labels.pod }} JVM使用率超过90%"

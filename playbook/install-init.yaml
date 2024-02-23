@@ -1,0 +1,9 @@
+- name: 服务器hosts文件修改
+  ignore_errors: false
+  gather_facts: true
+  hosts: all,!rocketmq
+  tasks:
+    - template:
+        src: /etc/ansible/hosts
+        dest: "/etc/hosts"
+        mode: 0644

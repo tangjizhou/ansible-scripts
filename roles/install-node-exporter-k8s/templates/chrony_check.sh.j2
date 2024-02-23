@@ -1,0 +1,30 @@
+#!/bin/bash
+#检查chrony时间偏移量
+
+chrony_prom={{ node_exporter_root_dir }}/logs/chrony_check.prom
+
+###chrony服务进程检查
+echo "# HELP chrony_status 0 is ok" > ${chrony_prom}
+echo "# TYPE chrony_status gauge" >> ${chrony_prom}
+# 检查chrony进程
+chrony_process=$(systemctl status chronyd.service)
+if [ $? -ne 0 ]
+then
+  desc="chrony进程异常"
+  echo "chrony_status{description=\"${desc}\"} 9999" >> ${chrony_prom}
+  exit 199
+fi
+
+remote_ip=$(chronyc sourcestats | awk '(NR==4){print $1}')
+echo "chrony_status{remote=\"${remote_ip}\"} 0" >> ${chrony_prom}
+
+
+###chrony检查Offset偏移量
+chrony_check_Offset=$(chronyc tracking | awk '(NR==4){print $4}' | awk '{printf ("%.2fms\n",$1*1000)}')
+
+echo "# HELP chrony_status_offset <50ms is ok" >> ${chrony_prom}
+echo "# TYPE chrony_status_offset gauge" >> ${chrony_prom}
+# 截取Offset的数值，单位已替换成默认的ms
+offset_num=$(echo "${chrony_check_Offset}" | tr -dc '0-9.')
+
+echo "chrony_status_offset{description=\"Offset偏移量超过阈值50ms\",remote=\"${remote_ip}\"} ${offset_num}" >> ${chrony_prom}

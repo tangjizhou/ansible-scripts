@@ -1,0 +1,1 @@
+zk_hosts_str: '{{ groups["kafka_elk"] | map("regex_replace", "^(.*)$","\1:2181") | join(",") }}'

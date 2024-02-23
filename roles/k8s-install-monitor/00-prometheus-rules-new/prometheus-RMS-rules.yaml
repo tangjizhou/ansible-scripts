@@ -1,0 +1,201 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    prometheus: k8s
+    role: alert-rules
+  name: prometheus-rms-rules
+  namespace: monitoring
+spec:
+  groups:
+    - name: prometheus-rms-rules
+      rules:
+        - alert: RMS-数据库总连接超高warning
+          expr: 65 < (hikaricp_connections{namespace=~".*-rms-.*"} / hikaricp_connections_max{namespace=~".*-rms-.*"} * 100) <= 80
+          for: 1m
+          labels:
+            severity: warning
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.pod }} 当前(hikaricp_connections/hikaricp_connections_max)*100={{ $value }}%"
+        - alert: RMS-数据库总连接超高critical
+          expr: (hikaricp_connections{namespace=~".*-rms-.*"} / hikaricp_connections_max{namespace=~".*-rms-.*"} * 100) > 80
+          for: 1m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.pod }} 当前(hikaricp_connections/hikaricp_connections_max)*100={{ $value }}%"
+        - alert: RMS-数据库等待连接超高
+          expr: hikaricp_connections_pending{namespace=~".*-rms-.*"} > 10
+          for: 1m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.pod }} 当前等待连接数：{{ $value }}"
+        - alert: RMS-数据库连接创建超时
+          expr: increase(hikaricp_connections_timeout_total{namespace=~".*-rms-.*"}[720m]) > 10
+          for: 1m
+          labels:
+            severity: warning
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.pod }} 当前创建超时的连接数：{{ $value }}"
+        - alert: RMS-POD重启
+          expr: round(increase(kube_pod_container_status_restarts_total{namespace=~".*-rms.*"}[5m])) > 0
+          for: 5s
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.pod }} 发生重启"
+        - alert: RMS-Blackbox-http探测失败告警
+          expr: probe_success{job="blackbox-http",namespace=~".*-rms.*"} == 0
+          for: 10s
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.pod }} 探测失败"
+        - alert: RMS-容器内线程数超高告警
+          expr: container_threads{namespace=~".*-rms.*"} > 2000
+          for: 10s
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.pod }}容器内线程数超过阈值2000"
+        - alert: RMS-表空间使用率告警
+          #fixme gaussDB 需要修改IP
+          expr: gauss_tablespace_used_pct{alert_db="10.13.171.159"} > 80
+          for: 10s
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #severity: "event_list"
+            #alarm_owner: ""
+          annotations:
+            description: "{{ $labels.description }}"
+        - alert: RMS-JVM使用率告警Warning
+          expr: 80 < sum(jvm_memory_used_bytes{namespace=~".*-rms-.*"}) by (namespace, service, pod) / sum(jvm_memory_max_bytes{namespace=~".*-rms-.*"}) by (namespace, service, pod) *100 < 90
+          for: 10m
+          labels:
+            severity: warning
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #alarm_owner: ""
+          annotations:
+            description: "当前POD={{ $labels.pod }} JVM使用率超过80%"
+        - alert: RMS-JVM使用率告警Critical
+          expr: 90 <= sum(jvm_memory_used_bytes{namespace=~".*-rms-.*"}) by (namespace, service, pod) / sum(jvm_memory_max_bytes{namespace=~".*-rms-.*"}) by (namespace, service, pod) *100
+          for: 10m
+          labels:
+            severity: critical
+            msg_rate: send_12h
+            #邮件接收人
+            mail_to: "EMAIL_TO"
+            #邮件抄送人
+            mail_cc: "EMAIL_CC"
+            #短信接收人
+            #phones: ""
+            #welink接收人
+            #workNo: ""
+            #ITSM事件单
+            #alarm_owner: ""
+          annotations:
+            description: "当前POD={{ $labels.pod }} JVM使用率超过90%"

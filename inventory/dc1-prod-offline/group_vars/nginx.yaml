@@ -1,0 +1,9 @@
+nginx_root_dir: '/data01/nginx'
+#监听的域名后缀
+domain_base: "*.cim.infra.temp"
+
+#keepalived变量
+keepalived_vip: '10.21.0.128'
+health_check_local_script: 'nginx_healthcheck.sh'
+#k8s集群vip
+k8s_keepalived_vip: '10.21.1.130'

@@ -1,0 +1,39 @@
+- name: 节点重置检查
+  shell: "/usr/bin/kubeadm reset -f"
+  register: result
+
+- name: 显示节点检查结果
+  debug:
+    msg: "{{ result }}"
+
+- name: 发送master添加脚本
+  copy:
+    src: /etc/ansible/k8s_join_shell/{{ groups['k8s_master_init'][0] }}/k8s_master_join.sh
+    dest: "/root/k8s_master_join.sh"
+  when: ansible_default_ipv4.address in (k8s_master_join)
+
+- name: 执行k8s_master_join.sh脚本
+  shell: "/bin/bash /root/k8s_master_join.sh"
+  when: ansible_default_ipv4.address in (k8s_master_join)
+  register: master_join_result
+
+- name: 显示master添加结果
+  debug:
+    msg: "{{ master_join_result }}"
+  when: ansible_default_ipv4.address in (k8s_master_join)
+
+- name: 发送worker添加脚本
+  copy: 
+    src: /etc/ansible/k8s_join_shell/{{ groups['k8s_master_init'][0] }}/k8s_worker_join.sh
+    dest: "/root/k8s_worker_join.sh"
+  when: ansible_default_ipv4.address in (k8s_worker)
+
+- name: 执行worker_join_shell.sh脚本
+  shell: "/bin/bash /root/k8s_worker_join.sh"
+  when: ansible_default_ipv4.address in (k8s_worker)
+  register: worker_join_result
+
+- name: 显示worker添加结果
+  debug:
+    msg: "{{ worker_join_result }}"
+  when: ansible_default_ipv4.address in (k8s_worker)

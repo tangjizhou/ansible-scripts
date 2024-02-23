@@ -1,0 +1,10 @@
+kafka_root_dir: '/data01/kafka'
+kafka_heap_opts: '-Xmx32G -Xms32G'
+# "host1:port1,host2:port2,host3:port3"
+kafka_hosts_str: '{{ groups["kafka"] | map("regex_replace", "^(.*)$","\1:9092") | list | to_json }}'
+
+# nginx需要引用，不能修改为ansible_play_hosts_all
+# ["host1:port1","host2:port2","host3:port3"]
+kafka_hosts_arr: '{{ groups["kafka"] | map("regex_replace", "^(.*)$","\1:9092") | list | join(",") }}'
+# filebeat config
+filebeat_config: "filebeat-kafka.yml.j2"

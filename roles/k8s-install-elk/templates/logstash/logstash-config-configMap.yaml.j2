@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logstash-config
+  namespace: elk
+  labels:
+    app: logstash-config
+data:
+  logstash.yml: |
+    pipeline.batch.size: 2000
+    pipeline.batch.delay: 1000
+    pipeline.unsafe_shutdown: false
+    config.reload.automatic: true
+    config.reload.interval: 3s
+    queue.type: memory
+    http.host: 0.0.0.0
+    http.port: 9600
+    path.config: /usr/share/logstash/pipeline
+    path.data: /usr/share/logstash/data
+    pipeline.workers: 8
+    xpack.monitoring.enabled: true
+    xpack.monitoring.elasticsearch.hosts: {{ es_hosts_arr }}

@@ -1,0 +1,48 @@
+- name: 服务器初始化
+  ignore_errors: false
+  gather_facts: false
+  hosts:
+    - kubernetes
+  roles:
+    - disable-firewalld
+    - change-hostname
+    - change-sysconf
+    - install-dns-client
+    - install-apt-source
+    - install-ntp-client
+
+- name: 安装k8s集群依赖组件containerd/kubeadm/kubelet/kubectl
+  ignore_errors: false
+  gather_facts: true
+  hosts:
+    - kubernetes
+  roles:
+    - install-containerd
+    # k8s安装组件kubelet/kubeadm/kubectl
+    - install-k8s-basis-components
+
+ ##安装kubernetes
+- name: 安装k8s集群
+  hosts:
+    - kubernetes
+  gather_facts: true
+  ignore_errors: false
+  roles:
+    - { role: install-keepalived, when: ansible_default_ipv4.address in (k8s_master) }
+    - { role: k8s-master-init-containerd-single, when: ansible_default_ipv4.address in (k8s_master_init) }
+    - { role: k8s-node-containerd-join, when: ansible_default_ipv4.address in (k8s_master_join) or ansible_default_ipv4.address in (k8s_worker) }
+    - { role: install-etcd-backup-cron, when: ansible_default_ipv4.address in (k8s_master) }
+    - { role: k8s-install-component, when: ansible_default_ipv4.address in (k8s_master_init) }
+
+ ##打label
+- name: change k8s node label
+  hosts:
+    - k8s_master_init
+  gather_facts: false
+  tasks:
+    - name: 修改k8s master init roles-label
+      shell: "kubectl label --overwrite node {{ hostvars[item].host_name }} {{ hostvars[item].label }}"
+      loop: "{{ query('inventory_hostnames', 'k8s_master_init') }}"
+    - name: 修改k8s master join roles-label
+      shell: "kubectl label --overwrite node {{ hostvars[item].host_name }} {{ hostvars[item].label }}"
+      loop: "{{ query('inventory_hostnames', 'k8s_master_join') }}"

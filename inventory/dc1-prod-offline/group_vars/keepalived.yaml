@@ -1,0 +1,7 @@
+keepalived_root_dir: '/data01/keepalived'
+# override by children
+keepalived_vip: '127.0.0.1'
+health_check_local_script: "health_check.sh"
+# fixed value
+keepalived_virtual_router_id: '{{ keepalived_vip.split(".")[3] }}'
+keepalived_vrrp_instance_interface: "{{ansible_default_ipv4.interface}}"

@@ -1,0 +1,44 @@
+- name: 安装kubeadm kubectl kubelet
+  apt:
+    name:
+      - kubelet
+      - kubeadm
+      - kubectl
+    update_cache: true
+    state: present
+- name: 刷新kubeadm
+  copy:
+    src: /etc/ansible/tools/kubeadm
+    dest: "/usr/bin/kubeadm"
+    mode: 0777
+
+- name: 设置crictl配置文件
+  shell: |
+    cat > /etc/crictl.yaml << EOF
+    runtime-endpoint: unix:///run/containerd/containerd.sock
+    image-endpoint: unix:///run/containerd/containerd.sock
+    timeout: 10
+    debug: false
+    EOF
+
+- name: specify node ip
+  lineinfile:
+    path: /etc/default/kubelet
+    regexp: "^KUBELET_EXTRA_ARGS"
+    line: "KUBELET_EXTRA_ARGS=--node-ip={{ ansible_ssh_host }} --root-dir={{ kubelet_data_dir }} --pod-max-pids=20000"
+    state: present
+    create: true
+- name: 创建 /data01/var/log/pods目录
+  file:
+    path: /data01/var/log/pods
+    state: directory
+    mode: 0755
+- name: 确保 /var/log/pods 目录不存在
+  file:
+    path: /var/log/pods
+    state: absent
+- name:  创建链接 /var/log/pods
+  file:
+    src: /data01/var/log/pods
+    dest: /var/log/pods
+    state: link

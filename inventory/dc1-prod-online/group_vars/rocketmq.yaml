@@ -1,0 +1,14 @@
+first_rocketmq: 'true'
+jdk_dir: '/data01/jdk1.8.0_202'
+rocket_cluster_name: CIMCluster
+rocketmq_root_dir: '/data01/rocketmq'
+rocketmq_package_dir: '{{ package_dir }}/rocketmq'
+rocketmq_jvm_namesvr_args: '-Xms16g -Xmx16g -Xmn8g'
+rocketmq_jvm_broker_args: '-Xms16g -Xmx16g'
+rocketmq_namesrv_str: '{{ groups["rocketmq_nameserver"] | map("regex_replace", "^(.*)$", "\1:9876") | join(";") }}'
+rocketmq_user: 'rocketmq'
+rocketmq_group: 'rocketmq'
+rocketmq_user_pass: 'rocketmq'
+rocketmq_console_password: 'admin=admin,1'
+# filebeat config
+filebeat_config: "filebeat-rocketmq.yml.j2"

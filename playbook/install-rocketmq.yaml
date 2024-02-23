@@ -1,0 +1,64 @@
+- name: 服务器初始化
+#  ignore_errors: true
+  gather_facts: false
+  hosts:
+    - rocketmq
+  roles:
+    - disable-firewalld
+    - change-hostname
+    - change-sysconf
+    - install-dns-client
+    - install-apt-source
+    - install-ntp-client
+    # 添加 mq参数修改role
+    - change-mq-sysconf
+    - install-java
+    - install-node-exporter
+
+
+- name: install rocketmq namesrv
+  gather_facts: false
+#  ignore_errors: true
+  hosts: rocketmq_nameserver
+  roles:
+    - rocketmq-nameserver
+
+- name: install rocketmq broker
+  gather_facts: false
+#  ignore_errors: true
+  hosts: rocketmq_broker
+  roles:
+    - rocketmq-broker
+
+- name: create topic
+  gather_facts: false
+#  ignore_errors: true
+  hosts: rocketmq_nameserver
+  tasks:
+    - name: set java env conf ~/.bashrc for rocketmq
+      lineinfile:
+        dest: ~/.bashrc
+        state: present
+        line: "{{ item }}"
+      with_items:
+        - "export JAVA_HOME={{ jdk_dir }}"
+        - "export JRE_HOME=${JAVA_HOME}/jre"
+        - "export CLASSPATH=.:${JAVA_HOME}/lib:${JRE_HOME}/lib"
+        - "export PATH=${JAVA_HOME}/bin:$PATH"
+    - name: create topic
+      shell: |
+        ./mqadmin updateTopic -n localhost:9876 -c {{ rocket_cluster_name }} -t {{ item }} -p 6 -r 16 -w 16
+      when: groups['rocketmq_nameserver'][0] == ansible_ssh_host
+      args:
+        chdir: "{{ rocketmq_root_dir }}/bin"
+      with_items:
+        - test
+
+- name: install rocketmq console
+  gather_facts: false
+#  ignore_errors: true
+  vars_files:
+    - "{{inventory_dir}}/group_vars/rocketmq.yaml"
+  hosts: k8s_master_init
+  roles:
+    - { role: rocketmq-console, when: (first_rocketmq) == "true" }

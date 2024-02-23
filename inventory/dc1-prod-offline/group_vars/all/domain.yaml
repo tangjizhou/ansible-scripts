@@ -1,0 +1,23 @@
+# 应用域名
+app_domains:
+  - "fmb.cim.infra.temp"
+  - "aps.cim.infra.temp"
+  - "report.cim.infra.temp"
+  - "skd.cim.infra.temp"
+  - "oee.cim.infra.temp"
+  - "rcm.cim.infra.temp"
+  - "dms.cim.infra.temp"
+  - "yms.cim.infra.temp"
+  - "fdc.cim.infra.temp"
+  - "adc.cim.infra.temp"
+
+
+# 组件域名
+traefik_domain: 'traefik-of.cim.infra.temp'
+mqconsole_domain: 'rocketmq-console-fdc.cim.infra.temp'
+alertmanager_domain: 'alertmanager-of.cim.infra.temp'
+prometheus_domain: 'prometheus-of.cim.infra.temp'
+blackbox_domain: 'blackbox-of.cim.infra.temp'
+grafana_domain: 'grafana-of.cim.infra.temp'
+kibana_domain: 'kibana.cim.infra.temp'
+kafka_manager_domain: ''

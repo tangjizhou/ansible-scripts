@@ -1,0 +1,13 @@
+- name: install node-exporter
+  hosts: node_exporter,!kubernetes
+  gather_facts: false
+  ignore_errors: false
+  roles:
+    - install-node-exporter
+
+- name: k8s-cluster install node-exporter
+  hosts: kubernetes
+  gather_facts: false
+  ignore_errors: false
+  roles:
+    - install-node-exporter-k8s

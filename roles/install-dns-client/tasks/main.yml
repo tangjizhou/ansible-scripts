@@ -1,0 +1,10 @@
+- name: backup resolv.conf
+  shell: "mv /etc/resolv.conf  /etc/resolv.conf.bak"
+
+- name: 配置resolve.conf
+  lineinfile:
+    path: /etc/resolv.conf
+    line: "nameserver {{ item }}"
+    state: present
+    create: true
+  with_items: '{{ nameservers.split(",") }}'

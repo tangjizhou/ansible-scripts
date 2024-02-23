@@ -1,0 +1,56 @@
+- name: 服务器初始化
+  ignore_errors: false
+  gather_facts: true
+  hosts:
+    - kafka
+    - zookeeper
+    - elasticsearch
+  roles:
+    - disable-firewalld
+    - change-hostname
+    - change-sysconf
+    - install-dns-client
+    - install-apt-source
+    - install-ntp-client
+    - install-docker
+
+- name: 部署zk集群
+  hosts:
+    - zookeeper
+  gather_facts: false
+  ignore_errors: false
+  roles:
+    - install-zk
+    #    - install-zk-exporter
+    - install-node-exporter
+
+- name: 部署kafka集群
+  hosts:
+    - kafka
+  gather_facts: true
+  ignore_errors: false
+  roles:
+    - install-kafka
+    - install-kafka-exporter
+    - install-node-exporter
+
+- name: 部署es集群
+  hosts:
+    - elasticsearch
+  gather_facts: true
+  ignore_errors: false
+  roles:
+    - install-elasticsearch
+    - install-node-exporter
+
+
+- name: 部署kibana
+  hosts:
+    - k8s_master_init
+  gather_facts: false
+  ignore_errors: false
+  vars_files:
+    - "{{inventory_dir}}/group_vars/kafka.yaml"
+    - "{{inventory_dir}}/group_vars/elasticsearch.yaml"
+  roles:
+    - k8s-install-elk

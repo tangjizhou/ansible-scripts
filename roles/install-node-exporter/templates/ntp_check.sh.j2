@@ -1,0 +1,41 @@
+#!/bin/bash
+
+ntp_prom={{ node_exporter_root_dir }}/logs/ntp_check.prom
+
+###NTP服务进程检查
+echo "# HELP ntp_status 0 is ok" > ${ntp_prom}
+echo "# TYPE ntp_status gauge" >> ${ntp_prom}
+# 检查NTP进程
+ntp_process_check=$(systemctl status ntp.service)
+if [ $? -ne 0 ]
+then
+  desc="NTP进程异常"
+  echo "ntp_status{description=\"${desc}\"} 9999" >> ${ntp_prom}
+  exit 199
+fi
+# 检查ntp同步服务器是否正常，1表示正常 0表示失败
+ntp_sync_status=$(/usr/bin/ntpq -pn | grep -E -c '^\*')
+if [ ${ntp_sync_status} -ne 1 ]
+then
+  desc="NTP进程运行正常，但与服务器时间同步异常"
+  echo "ntp_status{description=\"${desc}\"} 9999" >> ${ntp_prom}
+  exit 199
+fi
+# 获取remote指标，ntp_server
+remote=$(/usr/bin/ntpq -pn | grep -E '^\*' | awk '{print $1}')
+remote_ip=$(echo ${remote#\*})
+
+echo "ntp_status{remote=\"${remote_ip}\"} 0" >> ${ntp_prom}
+
+###收集jitter数据，未配置告警规则
+# jitter指标
+jitter=$(/usr/bin/ntpq -pn | awk '(NR==3){print $NF}')
+echo "# HELP ntp_status_jitter any is ok" >> ${ntp_prom}
+echo "# TYPE ntp_status_jitter gauge" >> ${ntp_prom}
+echo "ntp_status_jitter{remote=\"${remote_ip}\"} ${jitter}" >> ${ntp_prom}
+
+###收集offset数据
+offset=$(/usr/bin/ntpq -pn | awk '(NR==3){print $(NF-1)}')
+echo "# HELP ntp_status_offset <50 is ok" >> ${ntp_prom}
+echo "# TYPE ntp_status_offset gauge" >> ${ntp_prom}
+echo "ntp_status_offset{remote=\"${remote_ip}\"} ${offset}" >> ${ntp_prom}

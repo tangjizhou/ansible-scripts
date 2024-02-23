@@ -1,0 +1,115 @@
+- name: 修改系统环境参数sysconf
+  lineinfile:
+    line: "{{ item }}"
+    path: /etc/sysctl.conf
+  with_items:
+    - "net.ipv4.ip_local_port_range = 1024 65000"
+    - "net.ipv4.tcp_window_scaling = 1"
+    - "net.core.somaxconn = 65535"
+    - "net.core.netdev_max_backlog = 5000"
+    - "net.ipv4.tcp_fin_timeout = 30"
+    - "net.ipv4.tcp_keepalive_time = 30"
+    - "net.ipv4.tcp_tw_reuse = 1"
+    - "net.ipv4.tcp_max_tw_buckets = 10000"
+    - "net.ipv4.tcp_syncookies = 1"
+    - "net.ipv6.conf.all.disable_ipv6 = 1"
+    - "net.ipv6.conf.default.disable_ipv6 = 1"
+    - "net.ipv6.conf.lo.disable_ipv6 = 1"
+    - "net.ipv4.tcp_rmem = 4096 87380 8388608"
+    - "net.ipv4.tcp_wmem = 4096 87380 8388608"
+    - "net.core.rmem_max = 8388608"
+    - "net.core.wmem_max = 8388608"
+    - "net.ipv4.ip_forward = 0"
+    - "net.ipv4.conf.all.send_redirects = 0"
+    - "net.ipv4.conf.default.send_redirects = 0"
+
+- name: 手动配置net.netfilter.nf_conntrack_max参数
+  lineinfile:
+    path: "/etc/modprobe.d/nf_conntrack.conf"
+    line: "options nf_conntrack hashsize=262144"
+    create: true
+    state: present
+
+- name: 刷新系统配置
+  shell: "sysctl -p /etc/sysctl.conf"
+
+- name: 刷新iptables
+  shell: iptables -F
+
+- name: 检查Nginx docker-compose文件
+  stat:
+    path: "{{ nginx_root_dir }}/docker-compose.yml"
+  register: dir
+
+- name: 停止正在运行的Nginx进程
+  shell: "docker compose down"
+  when: dir.stat.exists == true
+  args:
+    chdir: "{{ nginx_root_dir }}"
+
+- name: 删除原有的Nginx工作目录
+  file:
+    path: "{{ nginx_root_dir }}"
+    state: absent
+  when: dir.stat.exists == true
+
+- name: 创建新的Nginx工作目录
+  file:
+    path: "{{ nginx_root_dir }}"
+    state: directory
+
+- name: 发送docker-compose.yml配置文件
+  template:
+    src: docker-compose.yml.j2
+    dest: '{{ nginx_root_dir }}/docker-compose.yml'
+
+- name: 创建Nginx配置文件目录conf
+  file:
+    path: '{{ nginx_root_dir }}/{{item}}'
+    state: directory
+  with_items:
+    - conf.d
+    - conf.d/http
+    - conf.d/stream
+    - conf.d/sslcrt
+
+- name: 发送配置文件nginx.conf
+  template:
+    src: nginx.conf.j2
+    dest: '{{ nginx_root_dir }}/nginx.conf'
+
+- name: 发送应用使用的配置文件conf.d
+  template:
+    src: '{{ item.src }}'
+    dest: "{{ nginx_root_dir }}/conf.d/{{ item.path | regex_replace('.j2$', '') }}"
+  with_filetree: "templates/conf.d/"
+  when: item.state == 'file'
+
+- name: docker compose启动Nginx容器
+  shell: "docker compose up -d"
+  args:
+    chdir: '{{ nginx_root_dir }}'
+
+- name: 使用docker compose重启容器内的Nginx进程
+  shell: "docker compose exec -T nginx nginx -s reload"
+  args:
+    chdir: '{{ nginx_root_dir }}'
+
+- name: 发送nginx日志轮转控制文件
+  template:
+    src: nginx.j2
+    dest: "/etc/logrotate.d/nginx"
+
+- name: wait nginx port 80 ready
+  wait_for:
+    port: 80
+    delay: 2
+    timeout: 30
+    msg: 'Timeout waiting for nginx port 80 respond'
+
+- name: wait nginx port 443 ready
+  wait_for:
+    port: 443
+    delay: 2
+    timeout: 30
+    msg: 'Timeout waiting for nginx port 443 respond'

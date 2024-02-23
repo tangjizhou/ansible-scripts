@@ -1,0 +1,50 @@
+---
+kind: InitConfiguration
+apiVersion: kubeadm.k8s.io/v1beta3
+localAPIEndpoint:
+  advertiseAddress: "{{ kubeadm_advertiseAddress }}"
+  bindPort: 6443
+nodeRegistration:
+  criSocket: "unix:///var/run/containerd/containerd.sock"
+  imagePullPolicy: IfNotPresent
+---
+kind: ClusterConfiguration
+apiVersion: kubeadm.k8s.io/v1beta3
+certificatesDir: "/etc/kubernetes/pki"
+clusterName: kubernetes
+imageRepository: "{{ image_repository }}/google_containers"
+kubernetesVersion: 1.24.9
+controlPlaneEndpoint: "{{ control_plane_endpoint }}"
+networking:
+  dnsDomain: cluster.local
+  serviceSubnet: "10.96.0.0/12"
+  podSubnet: "{{ pod_network_cidr }}"
+scheduler:
+  extraArgs:
+    "bind-address": "0.0.0.0"
+controllerManager:
+  extraArgs:
+    "bind-address": "0.0.0.0"
+apiServer:
+  timeoutForControlPlane: 4m0s
+  extraArgs:
+  #此两项配置添加后apiserver不能正常启动，需要确认是否配置正确
+    "enable-admission-plugins": "NodeRestriction,PodNodeSelector,PodTolerationRestriction,ResourceQuota"
+    #"runtime-config": "settings.k8s.io/v1alpha1=true"
+---
+kind: KubeletConfiguration
+apiVersion: kubelet.config.k8s.io/v1beta1
+cgroupDriver: systemd
+containerLogMaxFiles: 10
+containerLogMaxSize: 100Mi
+#LoggingConfiguration:
+#    format: json
+kubeReserved:
+    cpu: 500m
+    memory: 1Gi
+    ephemeral-storage: 1Gi
+systemReserved:
+    memory: 1Gi
+evictionHard:
+    memory.available: "1Gi"
+    nodefs.available: "10%"

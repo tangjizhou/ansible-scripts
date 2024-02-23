@@ -1,0 +1,34 @@
+version: '3'
+services:
+  minio:
+    image: '{{ image_repository }}/public/minio:latest'
+    container_name: minio
+    environment:
+      MINIO_ROOT_USER: "{{ minio_user }}"
+      MINIO_ROOT_PASSWORD: "{{ minio_password }}"
+    volumes:
+      - $PWD/data/:/data/
+      - $PWD/config:/root/.minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    network_mode: host
+    restart: always
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+  
+  createbuckets:
+    image: '{{ image_repository }}/public/mc:latest'
+    network_mode: host
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until (/usr/bin/mc alias set myminio http://localhost:9000 {{ minio_user }} {{ minio_password }}) do echo '...waiting...' && sleep 1; done;
+      /usr/bin/mc mb myminio/k8sback;
+      exit 0;
+      "

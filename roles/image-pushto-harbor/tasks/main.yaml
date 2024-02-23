@@ -1,0 +1,59 @@
+- name: 检查daemon.json文件
+  stat:
+    path: /etc/docker/daemon.json
+  register: check_json
+
+- name: daemon.json文件不存在时复制模板
+  template:
+    src: /etc/ansible/roles/install-docker/templates/daemon.json.j2
+    dest: "/etc/docker/daemon.json"
+  when: check_json.stat.exists == false
+
+- name: 发送重新配置daemon.json
+  shell: "sed -i '/insecure-registries/s/]/,\"'{{ image_repository }}'\" ]/g' /etc/docker/daemon.json"
+  when: check_json.stat.exists == true
+
+- name: 查看docker.json配置
+  shell: 'cat /etc/docker/daemon.json | grep "insecure-registries"'
+  register: docker_configure
+
+- name: show docker-configure
+  debug:
+    msg: "{{ docker_configure }}"
+
+- name: 重启docker进程
+  systemd:
+    name: docker
+    state: restarted
+    daemon_reload: true
+    enabled: yes
+
+- name: 发送应用项目创建脚本harbor-create-project.py
+  template:
+    src: harbor-create-project.py.j2
+    dest: "{{ package_dir }}/harbor/harbor-create-project.py"
+
+- name: 执行脚本harbor-create-project创建应用项目
+  shell: "/usr/bin/python3 {{ package_dir }}/harbor/harbor-create-project.py"
+  register: app_user_password
+
+- name: 显示创建的用户密码
+  debug:
+    msg: "{{ app_user_password.stdout_lines }}"
+
+- name: 配置镜像推送脚本
+  template:
+    src: "{{ package_dir }}/harbor/image-loadin.sh.j2"
+    dest: "{{ package_dir }}/harbor/image-loadin.sh"
+    mode: 0744
+
+- name: 执行镜像推送脚本
+  shell: "/bin/sh {{ package_dir }}/harbor/image-loadin.sh"
+  register: push_result
+
+- name: 查看推送结果
+  debug:
+    msg: "{{ push_result }}"
+
+- name: 清理镜像垃圾
+  shell: "docker system prune -af "

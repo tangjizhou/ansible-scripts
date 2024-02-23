@@ -1,0 +1,58 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: skywalking-ui
+  namespace: '{{ skywalking_namespace }}'
+spec:
+  entryPoints:
+    - web
+  routes:
+    - kind: Rule
+      match: Host(`{{ skywalking_domain }}`)
+      services:
+        - name: ui
+          port: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ui
+  namespace: '{{ skywalking_namespace }}'
+spec:
+  selector:
+    app: ui
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ui-deployment
+  namespace: '{{ skywalking_namespace }}'
+  labels:
+    app: ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ui
+  template:
+    metadata:
+      labels:
+        app: ui
+      annotations:
+        sidecar.istio.io/inject: "false"
+    spec:
+      serviceAccountName: skywalking-oap-sa-cluster
+      containers:
+        - name: ui
+          image: '{{ image_repository }}/public/skywalking-ui:9.3.0'
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SW_OAP_ADDRESS
+              value: http://oap:12800

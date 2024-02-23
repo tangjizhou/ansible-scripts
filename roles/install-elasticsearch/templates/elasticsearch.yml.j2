@@ -1,0 +1,20 @@
+cluster.name: "{{ es_cluster_name }}"
+cluster.max_shards_per_node: 10000
+node.name: {{ host_name }}
+network.host: 0.0.0.0
+network.publish_host: {{ ansible_ssh_host }}
+discovery.seed_hosts: {{ es_initial_master_nodes }}
+bootstrap.memory_lock: true
+xpack.monitoring.collection.enabled: true
+cluster.initial_master_nodes: {{ es_initial_master_nodes }}
+xpack.license.self_generated.type: basic
+xpack.security.enabled: false
+cluster.routing.allocation.same_shard.host: true
+cluster.routing.allocation.disk.watermark.low: "85%"
+cluster.routing.allocation.disk.watermark.high: "90%"
+cluster.info.update.interval: "30s"
+cluster.routing.allocation.disk.include_relocations: true
+cluster.routing.allocation.disk.threshold_enabled: true
+http.max_content_length: "500mb"
+http.max_initial_line_length: "100kb"
+http.max_header_size: "40kb"

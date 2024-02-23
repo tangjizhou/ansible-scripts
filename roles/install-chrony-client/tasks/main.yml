@@ -1,0 +1,28 @@
+- name: timedatectl set-timezone Asia/Shanghai
+  shell: "timedatectl set-timezone Asia/Shanghai"
+
+- name: date
+  shell: "date -R"
+  register: date_value
+
+- name: show date
+  debug:
+    msg: "{{ date_value.stdout }}"
+
+- name: install chrony
+  apt:
+    name: chrony
+    state: latest
+    update_cache: true
+
+- name: copy /etc/chrony.conf to remote server
+  template:
+    src: chrony.conf.j2
+    dest: "/etc/chrony/chrony.conf"
+
+- name: reload chronyd systemd service
+  systemd:
+    name: chronyd
+    daemon_reload: yes
+    enabled: yes
+    state: restarted

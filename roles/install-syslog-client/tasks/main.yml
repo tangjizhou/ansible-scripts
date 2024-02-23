@@ -1,0 +1,13 @@
+- name: copy kube-component file
+  template:
+    src: client.conf.j2
+    dest: '/etc/rsyslog.d/client.conf'
+    mode: 0755
+
+- name: restart rsyslog
+  systemd:
+    name: rsyslog
+    state: restarted
+    daemon_reload: true
+
+# logstash 增加syslog input自行搞
